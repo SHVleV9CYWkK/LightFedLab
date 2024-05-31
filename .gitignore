@@ -1,0 +1,10 @@
+data/
+logs/
+raw/
+all_data/
+*.png
+.idea/
+.DS_Store
+__MACOSX
+__pycache__
+*.h5
