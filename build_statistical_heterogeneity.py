@@ -14,7 +14,7 @@ def split_data_with_dirichlet(num_clients, a, dataset):
     min_size = 0
     while min_size < 10:  # 确保每个客户端至少有10个样本
         # 为每个类别生成Dirichlet分布
-        for label in range(10):
+        for label in range(len(dataset.classes)):
             label_indices = np.where(np.array(dataset.targets) == label)[0]
             # 使用Dirichlet分布分配这个类别的索引
             distributed_indices = np.random.dirichlet(np.repeat(a, num_clients)) * len(label_indices)
@@ -81,9 +81,9 @@ def load_datasets(dataset_name):
     return dataset
 
 
-def save_client_indices(dir, dataset_name, indexes):
+def save_client_indices(dir, dataset_name, split_method, indexes):
     os.makedirs(dir, exist_ok=True)
-    dataset_subdir = os.path.join(dir, dataset_name)
+    dataset_subdir = os.path.join(dir, dataset_name+"_"+split_method)
     os.makedirs(dataset_subdir, exist_ok=True)
 
     for client_id, client_data in indexes.items():
@@ -111,5 +111,5 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"split_method does not contain {args.split_method}")
 
-    save_client_indices(args.dataset_indexes_dir, args.dataset_name, indices)
+    save_client_indices(args.dataset_indexes_dir, args.dataset_name, args.split_method, indices)
     print(f"Saved client indices to {args.dataset_indexes_dir}")
