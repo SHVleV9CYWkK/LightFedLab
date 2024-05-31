@@ -1,14 +1,13 @@
 import os
 import numpy as np
 import torch
-from torchvision.datasets import EMNIST, CIFAR10, CIFAR100
-from torchvision import transforms
 from itertools import cycle
 from utils.args import *
 from sklearn.model_selection import train_test_split
+from utils.utils import *
 
 
-def split_data_with_dirichlet(num_clients, a, dataset):
+def split_data_with_dirichlet(num_clients, a, dataset, test_size, seed):
     # 分配数据到客户端
     data_indices = [np.array([]) for _ in range(num_clients)]
     min_size = 0
@@ -29,13 +28,13 @@ def split_data_with_dirichlet(num_clients, a, dataset):
         # 为每个客户端划分验证集
     train_val_split = {}
     for i in range(num_clients):
-        train_idx, val_idx = train_test_split(data_indices[i], test_size=0.2)
+        train_idx, val_idx = train_test_split(data_indices[i], test_size=test_size, random_state=seed)
         train_val_split[i] = {'train': train_idx, 'val': val_idx}
     return train_val_split
 
 
-def split_data_with_label(number_clients, number_client_label, dataset):
-    number_labels = len(torch.unique(dataset.dataset.targets))
+def split_data_with_label(number_clients, number_client_label, dataset, test_size, seed):
+    number_labels = len(torch.unique(dataset.targets))
 
     if number_client_label > number_labels:
         raise ValueError("number_client_label cannot be greater than the total number of labels.")
@@ -54,7 +53,7 @@ def split_data_with_label(number_clients, number_client_label, dataset):
     # 初始化为列表，每个客户端一个空列表
     clients_data_indices = [[] for _ in range(number_clients)]
     for label, clients in label_to_clients.items():
-        label_indices = np.where(np.array(dataset.dataset.targets) == label)[0]
+        label_indices = np.where(np.array(dataset.targets) == label)[0]
         split_indices = np.array_split(label_indices, len(clients))
         for i, client in enumerate(clients):
             clients_data_indices[client].extend(split_indices[i].tolist())
@@ -63,22 +62,10 @@ def split_data_with_label(number_clients, number_client_label, dataset):
     train_val_split = {}
     for i in range(len(clients_data_indices)):
         clients_data_indices[i] = np.array(clients_data_indices[i])
-        train_idx, val_idx = train_test_split(clients_data_indices[i], test_size=0.2, random_state=42)
+        train_idx, val_idx = train_test_split(clients_data_indices[i], test_size=test_size, random_state=seed)
         train_val_split[i] = {'train': train_idx, 'val': val_idx}
 
     return train_val_split
-
-
-def load_datasets(dataset_name):
-    if dataset_name == 'cifar10':
-        dataset = CIFAR10(root='./data', train=True, download=True, transform=transforms.ToTensor())
-    elif dataset_name == 'cifar100':
-        dataset = CIFAR100(root='./data', train=True, download=True, transform=transforms.ToTensor())
-    elif dataset_name == 'emnist':
-        dataset = EMNIST(root='./data', train=True, download=True, transform=transforms.ToTensor(), split='digits')
-    else:
-        raise ValueError(f"dataset_name does not contain {dataset_name}")
-    return dataset
 
 
 def save_client_indices(dir, dataset_name, split_method, indexes):
@@ -103,11 +90,11 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    full_dataset = load_datasets(args.dataset_name)
+    full_dataset = load_dataset(args.dataset_name)
     if args.split_method == "dirichlet":
-        indices = split_data_with_dirichlet(args.clients_num, args.alpha, full_dataset)
+        indices = split_data_with_dirichlet(args.clients_num, args.alpha, full_dataset, args.test_ratio, args.seed)
     elif args.split_method == "label":
-        indices = split_data_with_label(args.clients_num, args.number_label, full_dataset)
+        indices = split_data_with_label(args.clients_num, args.number_label, full_dataset, args.test_ratio, args.seed)
     else:
         raise ValueError(f"split_method does not contain {args.split_method}")
 

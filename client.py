@@ -6,11 +6,12 @@ from copy import deepcopy
 
 
 class Client(ABC):
-    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion):
+    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion, device):
         self.model = None
         self.criterion = criterion
         self.lr = lr
         self.epochs = epochs
+        self.device = device
         self.train_dataset_len = len(dataset_index['train'])
         self.val_dataset_len = len(dataset_index['val'])
         self.num_classes = len(full_dataset.classes)
@@ -36,7 +37,8 @@ class Client(ABC):
 
         with torch.no_grad():
             for x, labels in self.client_val_loader:
-                outputs = self.model(x)
+                x, labels = x.to(self.device), labels.to(self.device)
+                outputs = self.model(x).to(self.device)
                 loss = self.criterion(outputs, labels)
                 total_loss += loss.item() * x.size(0)
                 _, predicted = torch.max(outputs.data, 1)
@@ -47,14 +49,10 @@ class Client(ABC):
         all_predictions = torch.cat(all_predictions)
 
         avg_loss = total_loss / self.val_dataset_len
-        accuracy = metrics.multiclass_accuracy(all_predictions, all_labels,
-                                               num_classes=len(self.client_val_loader.dataset.dataset.classes))
-        precision = metrics.multiclass_precision(all_predictions, all_labels,
-                                                 num_classes=len(self.client_val_loader.dataset.dataset.classes))
-        recall = metrics.multiclass_recall(all_predictions, all_labels,
-                                           num_classes=len(self.client_val_loader.dataset.dataset.classes))
-        f1 = metrics.multiclass_f1_score(all_predictions, all_labels,
-                                         num_classes=len(self.client_val_loader.dataset.dataset.classes))
+        accuracy = metrics.multiclass_accuracy(all_predictions, all_labels, num_classes=self.num_classes)
+        precision = metrics.multiclass_precision(all_predictions, all_labels, num_classes=self.num_classes)
+        recall = metrics.multiclass_recall(all_predictions, all_labels, num_classes=self.num_classes)
+        f1 = metrics.multiclass_f1_score(all_predictions, all_labels, num_classes=self.num_classes)
 
         return {
             'loss': avg_loss,
@@ -66,8 +64,8 @@ class Client(ABC):
 
 
 class FedAvgClient(Client):
-    def __init__(self, dataset_index, fill_dataset, bz, lr, epochs, criterion, is_send_gradients=False):
-        super().__init__(dataset_index, fill_dataset, bz, lr, epochs, criterion)
+    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion, device, is_send_gradients=False):
+        super().__init__(dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         self.is_send_gradients = is_send_gradients
 
     def train(self):
@@ -81,6 +79,7 @@ class FedAvgClient(Client):
 
         for epoch in range(self.epochs):
             for x, labels in self.client_train_loader:
+                x, labels = x.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(x)
                 loss = self.criterion(outputs, labels)
@@ -100,4 +99,27 @@ class FedAvgClient(Client):
         return total_gradients
 
     def receive_model(self, global_model):
-        self.model = deepcopy(global_model)
+        self.model = deepcopy(global_model).to(device=self.device)
+
+
+class ClientFactory:
+    def create_client(self, num_client, fl_type, dataset_index, full_dataset,
+                      bz, lr, epochs, criterion, device, is_send_gradients=False):
+
+        if fl_type == 'fedavg':
+            client_prototype = FedAvgClient
+        else:
+            raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
+        clients = []
+        for idx in enumerate(num_client):
+            clients.append(client_prototype(dataset_index[idx],
+                                            full_dataset,
+                                            bz,
+                                            lr,
+                                            epochs,
+                                            criterion,
+                                            device,
+                                            is_send_gradients))
+
+        return clients
+

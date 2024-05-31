@@ -1,4 +1,6 @@
+import time
 import random
+from tqdm import tqdm
 from abc import ABC, abstractmethod
 
 class Server(ABC):
@@ -38,22 +40,6 @@ class Server(ABC):
 
         return average_results
 
-    # def _save_log(self, eval_results):
-    #     # 获取今天的日期字符串
-    #     today_date = datetime.today().strftime('%Y-%m-%d')
-    #
-    #     # 创建今天日期的目录
-    #     log_dir = os.path.join(self.save_log_dir, today_date)
-    #     os.makedirs(log_dir, exist_ok=True)
-    #
-    #     # 遍历评估结果，保存到相应的文件中
-    #     for metric, value in eval_results.items():
-    #         file_path = os.path.join(log_dir, f"{metric}.txt")
-    #         with open(file_path, 'a') as file:
-    #             file.write(f"{value}\n")
-    #
-    #     print(f"Evaluation results saved to {log_dir}")
-
     def _sample_clients(self):
         if self.client_selection_rate != 1:
             self.selected_clients = random.sample(self.clients, int(len(self.clients) * self.client_selection_rate))
@@ -62,10 +48,19 @@ class Server(ABC):
 
     def train(self):
         self._sample_clients()
+        pbar = tqdm(total=len(self.selected_clients))
         for client in self.selected_clients:
             client.train()
+            pbar.update(1)
+        pbar.clear()
+        pbar.close()
+        print("Aggregating models")
+        start_time = time.time()
         self._average_aggregate()
+        end_time = time.time()
+        print(f"Aggregation takes {(end_time - start_time):.3f} seconds")
         self._distribute_model()
+        print("Evaluating model")
         average_eval_results = self._evaluate_model()
         return average_eval_results
 
