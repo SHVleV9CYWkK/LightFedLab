@@ -87,8 +87,10 @@ def save_client_indices(dir, dataset_name, indexes):
     os.makedirs(dataset_subdir, exist_ok=True)
 
     for client_id, client_data in indexes.items():
-        train_file = os.path.join(dataset_subdir, f"client_{client_id}_train_indexes.npy")
-        val_file = os.path.join(dataset_subdir, f"client_{client_id}_val_indexes.npy")
+        dataset_subdir_client = os.path.join(dataset_subdir, f"client_{client_id}")
+        os.makedirs(dataset_subdir_client, exist_ok=True)
+        train_file = os.path.join(dataset_subdir_client, "train_indexes.npy")
+        val_file = os.path.join(dataset_subdir_client, f"val_indexes.npy")
         np.save(train_file, client_data['train'])
         np.save(val_file, client_data['val'])
         print(f"Saved training indices for client {client_id} at {train_file}")

@@ -33,7 +33,6 @@ def parse_args():
     parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'imagenet', 'emnist'],
                         help='dataset name')
     parser.add_argument('--lr', type=float, default=0.1, help='learning rate')
-    parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
     parser.add_argument('--local_epochs', type=int, default=1, help='number of local epochs')
     parser.add_argument('--n_rounds', type=int, default=1, help='number of global rounds')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
