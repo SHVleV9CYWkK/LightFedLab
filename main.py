@@ -1,21 +1,24 @@
-import datetime
+import os
 import time
+from datetime import datetime
 import torch
-from utils.args import *
-from utils.utils import *
+from utils.args import parse_args
+from utils.utils import load_model, load_dataset, get_client_data_indices
 from client import ClientFactory
 from server import ServerFactory
 
 
-def save_log(eval_results, save_log_dir):
-    # 获取今天的日期字符串
+def save_log(eval_results, save_log_dir, fl_type):
     today_date = datetime.today().strftime('%Y-%m-%d')
 
-    # 创建今天日期的目录
-    log_dir = os.path.join(save_log_dir, today_date)
+    # Create a directory for today's date
+    today_dir = os.path.join(save_log_dir, today_date)
+    os.makedirs(today_dir, exist_ok=True)
+
+    # Create a directory for FL
+    log_dir = os.path.join(today_dir, fl_type)
     os.makedirs(log_dir, exist_ok=True)
 
-    # 遍历评估结果，保存到相应的文件中
     for metric, value in eval_results.items():
         file_path = os.path.join(log_dir, f"{metric}.txt")
         with open(file_path, 'a') as file:
@@ -29,10 +32,14 @@ def execute_fed_process(server, args):
         print(f"------------\nRound {r}")
         start_time = time.time()
         server.train()
-        eval_results = server.eval()
+        eval_results = server.evaluate()
         end_time = time.time()
-        print(f"Training time: {end_time - start_time}")
-        save_log(eval_results, args.log_dir)
+        eval_results_str = ', '.join([f"{metric.capitalize()}: {value:.4f}" for metric, value in eval_results.items()])
+        print(f"Training time: {end_time - start_time}. Evaluation Results: {eval_results_str}")
+        print("Evaluation Results:")
+        for metric, value in eval_results.items():
+            print(f"{metric.capitalize()}: {value:.4f}")
+        save_log(eval_results, args.log_dir, args.fl_method)
 
 
 def execute_experiment(args, device):
@@ -44,7 +51,7 @@ def execute_experiment(args, device):
     else:
         raise ValueError(f"Invalid dataset name: {args.dataset_name}")
 
-    model = load_model(args.model_name, num_classes=num_classes).to(device)
+    model = load_model(args.model, num_classes=num_classes)
 
     client_indices, num_clients = get_client_data_indices(args.dataset_indexes_dir, args.dataset_name,
                                                           args.split_method)

@@ -11,7 +11,7 @@ class Server(ABC):
         self.client_selection_rate = client_selection_rate
         self.is_all_clients = client_selection_rate == 1
         self.model = model
-        self.datasets_len = [client.dataset_len for client in self.clients]
+        self.datasets_len = [client.train_dataset_len for client in self.clients]
         self._distribute_model()
 
     @abstractmethod

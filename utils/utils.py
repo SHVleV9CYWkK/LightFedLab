@@ -19,13 +19,13 @@ def load_dataset(dataset_name):
 
 def load_model(model_name, num_classes):
     if model_name == 'vgg16':
-        model = vgg16(pretrained=True)
+        model = vgg16(weights="VGG16_Weights.IMAGENET1K_V1")
         model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
     elif model_name == 'alexnet':
-        model = alexnet(pretrained=True)
+        model = alexnet(pretrained="AlexNet_Weights.IMAGENET1K_V1")
         model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
     elif model_name == 'resnet18':
-        model = resnet18(retrained=True)
+        model = resnet18(retrained="ResNet18_Weights.IMAGENET1K_V1")
         model.fc = nn.Linear(model.fc.in_features, num_classes)
     else:
         raise ValueError(f"model_name does not contain {model_name}")

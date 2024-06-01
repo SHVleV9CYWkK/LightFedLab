@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument('--log_dir', type=str, default='logs', help='log directory')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'],
                         help='determine the computing platform')
-    parser.add_argument('--split_method', type=str, default='train', choices=['dirichlet', 'label'],
+    parser.add_argument('--split_method', type=str, default='dirichlet', choices=['dirichlet', 'label'],
                         help='The methods of splitting the data set to generate non-IID are dirichlet and label '
                              'respectively. dirichlet is using dirichlet distributed. label indicates that the client '
                              'owns a subset of label')

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import numpy as np
 import torch
 import torcheval.metrics.functional as metrics
 from torch.utils.data import DataLoader, Subset
@@ -12,11 +13,13 @@ class Client(ABC):
         self.lr = lr
         self.epochs = epochs
         self.device = device
-        self.train_dataset_len = len(dataset_index['train'])
-        self.val_dataset_len = len(dataset_index['val'])
+        train_indices = np.load(dataset_index['train']).tolist()
+        val_indices = np.load(dataset_index['val']).tolist()
+        self.train_dataset_len = len(train_indices)
+        self.val_dataset_len = len(val_indices)
         self.num_classes = len(full_dataset.classes)
-        client_train_dataset = Subset(full_dataset, indices=dataset_index['train'])
-        client_val_dataset = Subset(full_dataset, indices=dataset_index['val'])
+        client_train_dataset = Subset(full_dataset, indices=train_indices)
+        client_val_dataset = Subset(full_dataset, indices=val_indices)
         self.client_train_loader = DataLoader(client_train_dataset, batch_size=bz, shuffle=False)
         self.client_val_loader = DataLoader(client_val_dataset, batch_size=bz, shuffle=False)
 
@@ -111,7 +114,7 @@ class ClientFactory:
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
         clients = []
-        for idx in enumerate(num_client):
+        for idx in range(num_client):
             clients.append(client_prototype(dataset_index[idx],
                                             full_dataset,
                                             bz,
