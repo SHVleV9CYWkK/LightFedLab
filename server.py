@@ -3,6 +3,7 @@ import random
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 
+
 class Server(ABC):
     def __init__(self, clients, model, client_selection_rate=1):
         self.clients = clients
@@ -60,6 +61,8 @@ class Server(ABC):
         end_time = time.time()
         print(f"Aggregation takes {(end_time - start_time):.3f} seconds")
         self._distribute_model()
+
+    def evaluate(self):
         print("Evaluating model")
         average_eval_results = self._evaluate_model()
         return average_eval_results
@@ -72,7 +75,8 @@ class FedAvgServer(Server):
     def _average_aggregate(self):
         weights_list = [client.model.state_dict()
                         for client in (self.clients if self.is_all_clients else self.selected_clients)]
-        datasets_len = self.datasets_len if self.is_all_clients else [client.dataset_len for client in self.selected_clients]
+        datasets_len = self.datasets_len if self.is_all_clients else [client.dataset_len for client in
+                                                                      self.selected_clients]
         average_weights = {}
         for key in weights_list[0].keys():
             weighted_sum = sum(weights[key] * len_ for weights, len_ in zip(weights_list, datasets_len))
@@ -80,3 +84,13 @@ class FedAvgServer(Server):
             average_weights[key] = weighted_sum / total_len
 
         self.model.load_state_dict(average_weights)
+
+
+class ServerFactory():
+    def create_server(self, fl_type, clients, model, client_selection_rate=1):
+        if fl_type == 'fedavg':
+            server_prototype = FedAvgServer
+        else:
+            raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
+
+        return server_prototype(clients, model, client_selection_rate)
