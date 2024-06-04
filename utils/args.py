@@ -30,13 +30,15 @@ def parse_args_for_dataset():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'qfedcg'],
+    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg'],
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100'],
                         help='dataset name')
     parser.add_argument('--model', type=str, default='vgg16', choices=['vgg16', 'resnet9', 'resnet18'],
                         help='model name')
-    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
+    parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of the local client during training')
+    parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')
+    parser.add_argument('--client_selection_rate', type=float, default=1, help='Client sampling rate')
     parser.add_argument('--local_epochs', type=int, default=1, help='number of local epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--n_rounds', type=int, default=1, help='number of global rounds')

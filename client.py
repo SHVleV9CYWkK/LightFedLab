@@ -108,31 +108,44 @@ class FedCGClient(Client):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         self.compression_ratio = kwargs.get('compression_ratio', 1)
 
-    def compress_gradients(self):
-        top_k = int(len(self.model.parameters()) * self.compression_ratio)
-        # k 是你想保留的梯度元素的数量
-        gradient_list = []
-        for name, param in self.model.named_parameters():
-            if param.grad is not None:
-                # 将梯度的绝对值和相应的名称、索引打包
-                grads_flat = param.grad.view(-1)
-                gradient_list.extend(zip(grads_flat.abs(), itertools.repeat(name), range(len(grads_flat))))
+    def compress_gradients(self, param_changes):
+        total_params = sum(p.numel() for p in param_changes.values())
+        top_k = int(total_params * self.compression_ratio)
 
-        # 排序找到最大的k个梯度
-        top_k_gradients = sorted(gradient_list, key=lambda x: x[0], reverse=True)[:top_k]
+        # 使用一个列表来保存所有的参数变化量及其绝对值
+        all_changes = []
+        shapes = {}
 
-        # 生成一个字典来保存压缩后的梯度
-        compressed_gradients = {name: torch.zeros_like(param.grad) for name, param in self.model.named_parameters()}
-        for _, name, idx in top_k_gradients:
-            # 将Top-k梯度放回它们原来的位置
-            idx_tuple = np.unravel_index(idx, compressed_gradients[name].shape)
-            compressed_gradients[name][idx_tuple] = self.model.named_parameters()[name].grad[idx_tuple]
+        for name, change in param_changes.items():
+            changes_flat = change.flatten()
+            # 记录每个参数的形状以便重构
+            shapes[name] = change.shape
+            all_changes.append(changes_flat.abs())
 
-        return compressed_gradients
+        # 合并所有参数变化量为一个单一的向量
+        all_changes = torch.cat(all_changes)
+        # 找到变化量中最大的top_k个元素的位置
+        _, top_k_indices = torch.topk(all_changes, top_k)
+
+        # 生成一个字典来保存压缩后的参数变化量
+        compressed_param_changes = {name: torch.zeros_like(change) for name, change in param_changes.items()}
+
+        # 分配top-k变化量到对应的参数
+        idx_offset = 0
+        for name, change in param_changes.items():
+            num_elements = np.prod(shapes[name])
+            # 获取当前参数对应的top-k索引
+            current_indices = top_k_indices[(top_k_indices >= idx_offset) & (top_k_indices < idx_offset + num_elements)] - idx_offset
+            # 将选择的变化量放回其原位置
+            compressed_param_changes[name].view(-1)[current_indices] = change.view(-1)[current_indices]
+            idx_offset += num_elements
+
+        return compressed_param_changes
 
     def train(self):
         self.model.train()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        initial_params = {name: param.clone() for name, param in self.model.named_parameters()}
         for epoch in range(self.epochs):
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
@@ -140,15 +153,10 @@ class FedCGClient(Client):
                 outputs = self.model(x)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
-
-                # Apply gradient compression here based on self.compression_ratio
-                # This could involve selecting the top-k gradients, for example
-                self.compress_gradients()
-
                 optimizer.step()
 
-        # Assuming we only send compressed gradients
-        return self.compress_gradients()
+        param_changes = {name: initial_params[name] - param.data for name, param in self.model.named_parameters()}
+        return self.compress_gradients(param_changes)
 
 
 class QFedCGClient(FedCGClient):

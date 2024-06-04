@@ -9,16 +9,19 @@ from abc import ABC, abstractmethod
 class Server(ABC):
     def __init__(self, clients, model, client_selection_rate=1, server_lr=0.01):
         self.clients = clients
-        self.selected_clients = None
         self.server_lr = server_lr
         self.client_selection_rate = client_selection_rate
         self.is_all_clients = client_selection_rate == 1
+        if self.is_all_clients:
+            self.selected_clients = clients
+        else:
+            self.selected_clients = random.sample(self.clients, len(clients) * self.client_selection_rate)
         self.model = model
         self.datasets_len = [client.train_dataset_len for client in self.clients]
         self._distribute_model()
 
     @abstractmethod
-    def _average_aggregate(self):
+    def _average_aggregate(self, weights_list):
         pass
 
     def _distribute_model(self):
@@ -44,9 +47,10 @@ class Server(ABC):
 
         return average_results
 
-    def _weight_aggregation(self):
-        weights_list = [client.model.state_dict()
-                        for client in (self.clients if self.is_all_clients else self.selected_clients)]
+    def _handle_gradients(self, grad, client_id):
+        return grad
+
+    def _weight_aggregation(self, weights_list):
         datasets_len = self.datasets_len if self.is_all_clients else [client.dataset_len for client in
                                                                       self.selected_clients]
         average_weights = {}
@@ -57,29 +61,39 @@ class Server(ABC):
 
         self.model.load_state_dict(average_weights)
 
-    def _handle_gradients(self, grad, client_id):
-        return grad
+    def _gradient_aggregation(self, weights_list, dataset_len=None):
+        # 获取模型参数
+        global_weights = self.model.state_dict()
 
-    def _gradient_aggregation(self):
-        gradient_sums = {}
-        total_data_points = sum([client.train_dataset_len for client in self.selected_clients])
+        # 准备用于累加梯度的字典
+        sum_gradients = {name: torch.zeros_like(param) for name, param in global_weights.items()}
 
-        for client in self.selected_clients:
-            compressed_gradients = client.train()
-            for key, compressed_grad in compressed_gradients.items():
-                if key not in gradient_sums:
-                    gradient_sums[key] = torch.zeros_like(compressed_grad)
-                compressed_grad = self._handle_gradients(compressed_grad, client.id)
-                # Decompress here if necessary, otherwise just add
-                gradient_sums[key] += compressed_grad * (client.train_dataset_len / total_data_points)
+        # 累加梯度
+        if dataset_len is None:
+            dataset_len = [1] * len(weights_list)  # 如果没有提供权重，使用等权重
 
-        # Apply the aggregated gradients to the server model
+        total_weight = sum(dataset_len)
+
+        for gradients, weight in zip(weights_list, dataset_len):
+            for name, grad in gradients.items():
+                if grad is not None:
+                    sum_gradients[name] += grad * weight
+
+        # 计算梯度的加权或非加权均值
+        averaged_gradients = {name: sum_grad / total_weight for name, sum_grad in sum_gradients.items()}
+
+        for name, sum_grad in  averaged_gradients.items():
+            if torch.isnan(sum_grad).any() or torch.isinf(sum_grad).any():
+                print(f"Gradient for {name} contains NaN or Inf.")
+
+        # 使用优化器更新模型参数
+        optimizer = torch.optim.Adam(self.model.parameters(),lr=self.server_lr)
         for name, param in self.model.named_parameters():
-            param.grad = gradient_sums.get(name, torch.zeros_like(param))
+            if name in averaged_gradients:
+                param.grad = averaged_gradients[name]
 
-        # Use an optimizer step to update model weights
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.server_lr)  # Assuming a learning rate
         optimizer.step()
+        optimizer.zero_grad()
 
     def _sample_clients(self):
         if self.client_selection_rate != 1:
@@ -90,14 +104,16 @@ class Server(ABC):
     def train(self):
         self._sample_clients()
         pbar = tqdm(total=len(self.selected_clients))
+        local_weights = []
         for client in self.selected_clients:
-            client.train()
+            client_weights = client.train()
+            local_weights.append(client_weights)
             pbar.update(1)
         pbar.clear()
         pbar.close()
         print("Aggregating models")
         start_time = time.time()
-        self._average_aggregate()
+        self._average_aggregate(local_weights)
         end_time = time.time()
         print(f"Aggregation takes {(end_time - start_time):.3f} seconds")
         self._distribute_model()
@@ -112,17 +128,17 @@ class FedAvgServer(Server):
     def __init__(self, clients, model, client_selection_rate=1, server_lr=0.01):
         super().__init__(clients, model, client_selection_rate, server_lr)
 
-    def _average_aggregate(self):
+    def _average_aggregate(self, weights_list):
         is_send_gradients = self.clients[0].is_send_gradients
-        self._weight_aggregation() if is_send_gradients else self._gradient_aggregation()
+        self._weight_aggregation(weights_list) if is_send_gradients else self._gradient_aggregation(weights_list)
 
 
 class FedCGServer(Server):
     def __init__(self, clients, model, client_selection_rate=1, server_lr=0.01):
         super().__init__(clients, model, client_selection_rate, server_lr)
 
-    def _average_aggregate(self):
-        self._gradient_aggregation()
+    def _average_aggregate(self, weights_list):
+        self._gradient_aggregation(weights_list)
 
 
 class QFedCGServer(FedCGServer):
@@ -155,7 +171,7 @@ class QFedCGServer(FedCGServer):
 
     def calculate_psi_k(self):
         M = len(self.clients)  # 总客户端数量
-        T = 1  # 假设每轮中每个客户端贡献一次更新，可以根据实际情况调整
+        T = 1  # 每轮中每个客户端贡献一次更新
         I = len(self.model_updates)  # 模型更新历史的长度
         sum_model_updates = sum(self.model_updates[i] ** 2 for i in range(I))
         eta_k = 0.01  # 学习率，需要根据你的优化器配置设置
@@ -201,10 +217,12 @@ class QFedCGServer(FedCGServer):
 
 
 class ServerFactory:
-    def create_server(self, fl_type, clients, model, client_selection_rate=1):
+    def create_server(self, fl_type, clients, model, client_selection_rate=1, server_lr=1e-3):
         if fl_type == 'fedavg':
             server_prototype = FedAvgServer
+        elif fl_type == 'fedcg' or fl_type == 'qfedcg':
+            server_prototype = FedCGServer
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
-        return server_prototype(clients, model, client_selection_rate)
+        return server_prototype(clients, model, client_selection_rate, server_lr)
