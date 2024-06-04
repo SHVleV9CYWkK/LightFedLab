@@ -130,10 +130,11 @@ class QFedCGServer(FedCGServer):
         super().__init__(clients, model, client_selection_rate)
         self.quantization_levels = {client.id: 1 for client in clients}
         self.last_gradients = {client.id: None for client in clients}
+        self.quantization_errors = {client.id: 0 for client in clients}  # 初始化每个客户端的量化误差
         self.l_max = 8
         self.model_updates = []  # 存储模型更新的历史信息
 
-        # 初始化量化和逆量化模块
+    # 初始化量化和逆量化模块
         self.quantizer = QuantStub()
         self.dequantizer = DeQuantStub()
 
@@ -181,13 +182,20 @@ class QFedCGServer(FedCGServer):
 
     def _handle_gradients(self, quantized_tensor, client_id):
         current_gradient = self.dequantizer(quantized_tensor)
+        current_gradient += self.quantization_errors[client_id]
+
         quant_level = self.calculate_quantization_levels(client_id, current_gradient)
         self.update_client_quant_config(client_id, quant_level)
+
+        new_quantized_grad = self.quantizer(current_gradient)
+        quantization_error = current_gradient - new_quantized_grad
+        self.quantization_errors[client_id] = quantization_error  # 更新量化误差存储
+
         self.last_gradients[client_id] = current_gradient  # 更新上一次梯度记录
         return current_gradient
 
 
-class ServerFactory():
+class ServerFactory:
     def create_server(self, fl_type, clients, model, client_selection_rate=1):
         if fl_type == 'fedavg':
             server_prototype = FedAvgServer
