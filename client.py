@@ -1,16 +1,16 @@
 import itertools
-import platform
 from abc import ABC, abstractmethod
 import numpy as np
 import torch
-from torch.quantization import QuantStub, DeQuantStub
+from torch.quantization import QuantStub, DeQuantStub, QConfig, default_observer
 import torcheval.metrics.functional as metrics
 from torch.utils.data import DataLoader, Subset
 from copy import deepcopy
 
 
 class Client(ABC):
-    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion, device):
+    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device):
+        self.id = client_id
         self.model = None
         self.criterion = criterion
         self.lr = lr
@@ -68,9 +68,9 @@ class Client(ABC):
 
 
 class FedAvgClient(Client):
-    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion, device, is_send_gradients=False):
-        super().__init__(dataset_index, full_dataset, bz, lr, epochs, criterion, device)
-        self.is_send_gradients = is_send_gradients
+    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
+        self.is_send_gradients = kwargs.get('is_send_gradients', False)
 
     def train(self):
         self.model.train()
@@ -104,9 +104,9 @@ class FedAvgClient(Client):
 
 
 class FedCGClient(Client):
-    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion, device, compression_ratio):
-        super().__init__(dataset_index, full_dataset, bz, lr, epochs, criterion, device)
-        self.compression_ratio = compression_ratio
+    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
+        self.compression_ratio = kwargs.get('compression_ratio', 1)
 
     def compress_gradients(self):
         top_k = int(len(self.model.parameters()) * self.compression_ratio)
@@ -152,34 +152,33 @@ class FedCGClient(Client):
 
 
 class QFedCGClient(FedCGClient):
-    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion, device, compression_ratio, quantization_levels):
-        super().__init__(dataset_index, full_dataset, bz, lr, epochs, criterion, device, compression_ratio)
-        self.quantization_levels = quantization_levels
+    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs)
+        self.quantization_levels = kwargs.get('quantization_levels', 8)
+        self.initialize_quantization()
 
-        # 使用platform模块来判断当前的CPU架构
-        if 'ARM' in platform.processor().upper():
-            torch.backends.quantized.engine = 'qnnpack'  # 适用于ARM设备
-        else:
-            torch.backends.quantized.engine = 'fbgemm'  # 适用于x86设备
-
-        # 初始化量化和反量化模块
+    def initialize_quantization(self):
+        custom_observer = default_observer.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_affine,
+                                                     quant_min=-2**(self.quantization_levels-1),
+                                                     quant_max=2**(self.quantization_levels-1) - 1)
+        self.qconfig = QConfig(activation=custom_observer(), weight=custom_observer())
         self.quantizer = QuantStub()
         self.dequantizer = DeQuantStub()
-        self.quantizer.qconfig = torch.quantization.get_default_qconfig(torch.backends.quantized.engine)
+        self.quantizer.qconfig = self.qconfig
         torch.quantization.prepare(self.quantizer, inplace=True)
         torch.quantization.convert(self.quantizer, inplace=True)
 
     def get_top_k_gradients(self, k):
-            top_k_grads = {}
-            for name, param in self.model.named_parameters():
-                if param.grad is not None:
-                    abs_grad = param.grad.abs().flatten()
-                    top_values, top_indices = torch.topk(abs_grad, k, largest=True, sorted=False)
-                    mask = torch.zeros_like(abs_grad, dtype=torch.bool)
-                    mask[top_indices] = True
-                    mask = mask.reshape(param.grad.shape)
-                    top_k_grads[name] = param.grad * mask
-            return top_k_grads
+        top_k_grads = {}
+        for name, param in self.model.named_parameters():
+            if param.grad is not None:
+                abs_grad = param.grad.abs().flatten()
+                top_values, top_indices = torch.topk(abs_grad, k, largest=True, sorted=False)
+                mask = torch.zeros_like(abs_grad, dtype=torch.bool)
+                mask[top_indices] = True
+                mask = mask.reshape(param.grad.shape)
+                top_k_grads[name] = param.grad * mask
+        return top_k_grads
 
     def quantize(self, tensor):
         quantized_tensor = self.quantizer(tensor)
@@ -214,7 +213,7 @@ class QFedCGClient(FedCGClient):
 
 class ClientFactory:
     def create_client(self, num_client, fl_type, dataset_index, full_dataset,
-                      bz, lr, epochs, criterion, device, is_send_gradients=False):
+                      bz, lr, epochs, criterion, device, **kwargs):
 
         if fl_type == 'fedavg':
             client_prototype = FedAvgClient
@@ -226,13 +225,14 @@ class ClientFactory:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
         clients = []
         for idx in range(num_client):
-            clients.append(client_prototype(dataset_index[idx],
+            clients.append(client_prototype(idx,
+                                            dataset_index[idx],
                                             full_dataset,
                                             bz,
                                             lr,
                                             epochs,
                                             criterion,
                                             device,
-                                            is_send_gradients))
+                                            **kwargs))
 
         return clients

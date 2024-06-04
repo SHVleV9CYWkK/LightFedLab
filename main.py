@@ -64,7 +64,7 @@ def execute_experiment(args, device):
 
     central_server = ServerFactory().create_server(args.fl_method, clients, model)
 
-    execute_fed_process(central_server,args)
+    execute_fed_process(central_server, args)
 
 
 if __name__ == '__main__':
