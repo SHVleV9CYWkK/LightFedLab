@@ -1,6 +1,9 @@
+import itertools
+import platform
 from abc import ABC, abstractmethod
 import numpy as np
 import torch
+from torch.quantization import QuantStub, DeQuantStub
 import torcheval.metrics.functional as metrics
 from torch.utils.data import DataLoader, Subset
 from copy import deepcopy
@@ -23,14 +26,12 @@ class Client(ABC):
         self.client_train_loader = DataLoader(client_train_dataset, batch_size=bz, shuffle=False)
         self.client_val_loader = DataLoader(client_val_dataset, batch_size=bz, shuffle=False)
 
-
     @abstractmethod
     def train(self):
         pass
 
-    @abstractmethod
     def receive_model(self, global_model):
-        pass
+        self.model = deepcopy(global_model).to(device=self.device)
 
     def evaluate_local_model(self):
         self.model.eval()
@@ -101,8 +102,114 @@ class FedAvgClient(Client):
                 total_gradients[name] = total_gradient_change
         return total_gradients
 
-    def receive_model(self, global_model):
-        self.model = deepcopy(global_model).to(device=self.device)
+
+class FedCGClient(Client):
+    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion, device, compression_ratio):
+        super().__init__(dataset_index, full_dataset, bz, lr, epochs, criterion, device)
+        self.compression_ratio = compression_ratio
+
+    def compress_gradients(self):
+        top_k = int(len(self.model.parameters()) * self.compression_ratio)
+        # k 是你想保留的梯度元素的数量
+        gradient_list = []
+        for name, param in self.model.named_parameters():
+            if param.grad is not None:
+                # 将梯度的绝对值和相应的名称、索引打包
+                grads_flat = param.grad.view(-1)
+                gradient_list.extend(zip(grads_flat.abs(), itertools.repeat(name), range(len(grads_flat))))
+
+        # 排序找到最大的k个梯度
+        top_k_gradients = sorted(gradient_list, key=lambda x: x[0], reverse=True)[:top_k]
+
+        # 生成一个字典来保存压缩后的梯度
+        compressed_gradients = {name: torch.zeros_like(param.grad) for name, param in self.model.named_parameters()}
+        for _, name, idx in top_k_gradients:
+            # 将Top-k梯度放回它们原来的位置
+            idx_tuple = np.unravel_index(idx, compressed_gradients[name].shape)
+            compressed_gradients[name][idx_tuple] = self.model.named_parameters()[name].grad[idx_tuple]
+
+        return compressed_gradients
+
+    def train(self):
+        self.model.train()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        for epoch in range(self.epochs):
+            for x, labels in self.client_train_loader:
+                x, labels = x.to(self.device), labels.to(self.device)
+                optimizer.zero_grad()
+                outputs = self.model(x)
+                loss = self.criterion(outputs, labels)
+                loss.backward()
+
+                # Apply gradient compression here based on self.compression_ratio
+                # This could involve selecting the top-k gradients, for example
+                self.compress_gradients()
+
+                optimizer.step()
+
+        # Assuming we only send compressed gradients
+        return self.compress_gradients()
+
+
+class QFedCGClient(FedCGClient):
+    def __init__(self, dataset_index, full_dataset, bz, lr, epochs, criterion, device, compression_ratio, quantization_levels):
+        super().__init__(dataset_index, full_dataset, bz, lr, epochs, criterion, device, compression_ratio)
+        self.quantization_levels = quantization_levels
+
+        # 使用platform模块来判断当前的CPU架构
+        if 'ARM' in platform.processor().upper():
+            torch.backends.quantized.engine = 'qnnpack'  # 适用于ARM设备
+        else:
+            torch.backends.quantized.engine = 'fbgemm'  # 适用于x86设备
+
+        # 初始化量化和反量化模块
+        self.quantizer = QuantStub()
+        self.dequantizer = DeQuantStub()
+        self.quantizer.qconfig = torch.quantization.get_default_qconfig(torch.backends.quantized.engine)
+        torch.quantization.prepare(self.quantizer, inplace=True)
+        torch.quantization.convert(self.quantizer, inplace=True)
+
+    def get_top_k_gradients(self, k):
+            top_k_grads = {}
+            for name, param in self.model.named_parameters():
+                if param.grad is not None:
+                    abs_grad = param.grad.abs().flatten()
+                    top_values, top_indices = torch.topk(abs_grad, k, largest=True, sorted=False)
+                    mask = torch.zeros_like(abs_grad, dtype=torch.bool)
+                    mask[top_indices] = True
+                    mask = mask.reshape(param.grad.shape)
+                    top_k_grads[name] = param.grad * mask
+            return top_k_grads
+
+    def quantize(self, tensor):
+        quantized_tensor = self.quantizer(tensor)
+        dequantized_tensor = self.dequantizer(quantized_tensor)
+        return dequantized_tensor
+
+    def compress_and_quantize_gradients(self):
+        k = int(sum(p.numel() for p in self.model.parameters()) * self.compression_ratio)
+        sparse_gradients = self.get_top_k_gradients(k)
+        quantized_gradients = {}
+        for name, grad in sparse_gradients.items():
+            quantized_gradients[name] = self.quantize(grad)
+        return quantized_gradients
+
+    def train(self):
+        self.model.train()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        for epoch in range(self.epochs):
+            for x, labels in self.client_train_loader:
+                x, labels = x.to(self.device), labels.to(self.device)
+                optimizer.zero_grad()
+                outputs = self.model(x)
+                loss = self.criterion(outputs, labels)
+                loss.backward()
+                compressed_and_quantized_grads = self.compress_and_quantize_gradients()
+                for name, param in self.model.named_parameters():
+                    if name in compressed_and_quantized_grads:
+                        param.grad = compressed_and_quantized_grads[name]
+                optimizer.step()
+        return self.model.state_dict()
 
 
 class ClientFactory:
@@ -111,6 +218,10 @@ class ClientFactory:
 
         if fl_type == 'fedavg':
             client_prototype = FedAvgClient
+        elif fl_type == 'fedcg':
+            client_prototype = FedCGClient
+        elif fl_type == 'qfedcg':
+            client_prototype = QFedCGClient
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
         clients = []
@@ -125,4 +236,3 @@ class ClientFactory:
                                             is_send_gradients))
 
         return clients
-
