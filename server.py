@@ -134,7 +134,7 @@ class QFedCGServer(FedCGServer):
         self.l_max = 8
         self.model_updates = []  # 存储模型更新的历史信息
 
-    # 初始化量化和逆量化模块
+        # 初始化量化和逆量化模块
         self.quantizer = QuantStub()
         self.dequantizer = DeQuantStub()
 
@@ -147,6 +147,11 @@ class QFedCGServer(FedCGServer):
         torch.quantization.convert(self.quantizer, inplace=True)
         torch.quantization.prepare(self.dequantizer, inplace=True)
         torch.quantization.convert(self.dequantizer, inplace=True)
+
+    def _distribute_model(self):
+        for client in self.clients if self.is_all_clients else self.selected_clients:
+            client.receive_model(self.model)
+            client.initialize_quantization()
 
     def calculate_psi_k(self):
         M = len(self.clients)  # 总客户端数量
