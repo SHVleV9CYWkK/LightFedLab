@@ -4,8 +4,8 @@ from datetime import datetime
 import torch
 from utils.args import parse_args
 from utils.utils import load_model, load_dataset, get_client_data_indices
-from client import ClientFactory
-from server import ServerFactory
+from clinets.client import ClientFactory
+from servers.server import ServerFactory
 
 
 def save_log(eval_results, save_log_dir, fl_type):
