@@ -44,7 +44,7 @@ def execute_experiment(args, device):
     else:
         raise ValueError(f"Invalid dataset name: {args.dataset_name}")
 
-    model = load_model(args.model, num_classes=num_classes)
+    model = load_model(args.model, num_classes=num_classes).to(device)
 
     client_indices, num_clients = get_client_data_indices(args.dataset_indexes_dir, args.dataset_name,
                                                           args.split_method)
@@ -52,13 +52,14 @@ def execute_experiment(args, device):
     criterion = torch.nn.CrossEntropyLoss()
     clients = ClientFactory().create_client(num_clients, args, client_indices, full_dataset, criterion, device)
 
-    central_server = ServerFactory().create_server(args.fl_method, clients, device, model, args.client_selection_rate, args.server_lr)
+    central_server = ServerFactory().create_server(args.fl_method, clients, model, device, args.client_selection_rate, args.server_lr)
 
     execute_fed_process(central_server, args)
 
 
 if __name__ == '__main__':
     arguments = parse_args()
+    torch.manual_seed(arguments.seed)
 
     if arguments.device == "cuda" and torch.cuda.is_available():
         compute_device = torch.device("cuda")

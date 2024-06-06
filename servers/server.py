@@ -84,9 +84,9 @@ class Server(ABC):
         averaged_gradients = {name: sum_grad / total_weight for name, sum_grad in sum_gradients.items()}
 
         # # 检查梯度是否包含NaN或Inf
-        # for name, sum_grad in averaged_gradients.items():
-        #     if torch.isnan(sum_grad).any() or torch.isinf(sum_grad).any():
-        #         print(f"Gradient for {name} contains NaN or Inf.")
+        for name, sum_grad in averaged_gradients.items():
+            if torch.isnan(sum_grad).any() or torch.isinf(sum_grad).any():
+                print(f"Gradient for {name} contains NaN or Inf.")
 
         # 使用优化器更新模型参数
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.server_lr)

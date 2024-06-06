@@ -11,7 +11,7 @@ class FedCGClient(Client):
         # 计算权重参数的总数量和top-k阈值
         numel_list = [p.numel() for name, p in param_changes.items() if 'bias' not in name]
         total_params = sum(numel_list)
-        top_k = int(total_params * self.compression_ratio)
+        global_top_k = int(total_params * self.compression_ratio)
 
         # 生成压缩后的参数变化量字典
         compressed_param_changes = {}
@@ -21,16 +21,16 @@ class FedCGClient(Client):
                 compressed_param_changes[name] = change
             else:
                 num_elements = change.numel()
+                layer_top_k = max(int(num_elements / total_params * global_top_k), 1)
                 abs_grad = change.abs().flatten()
-                top_values, top_indices = torch.topk(abs_grad, top_k, largest=True, sorted=False)
-                relevant_indices = (top_indices >= idx_offset) & (top_indices < idx_offset + num_elements)
-                adjusted_indices = top_indices[relevant_indices] - idx_offset
-                indices = adjusted_indices.unsqueeze(0)
-                values = change.flatten()[adjusted_indices]
-                size = change.size()
+                top_values, top_indices = torch.topk(abs_grad, layer_top_k, largest=True, sorted=False)
 
-                if self.device == 'cuda' or self.device == 'cpu':
-                    # 创建稀疏张量并使用
+                if next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu:
+                    relevant_indices = (top_indices >= idx_offset) & (top_indices < idx_offset + num_elements)
+                    adjusted_indices = top_indices[relevant_indices] - idx_offset
+                    indices = adjusted_indices.unsqueeze(0)
+                    values = change.flatten()[adjusted_indices]
+                    size = change.size()
                     sparse_tensor = torch.sparse_coo_tensor(indices, values, size, device=change.device)
                     compressed_param_changes[name] = sparse_tensor
                 else:
