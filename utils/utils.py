@@ -1,8 +1,11 @@
 import os
-from torchvision.datasets import CIFAR10, CIFAR100, EMNIST
+import matplotlib.pyplot as plt
+import pandas as pd
+from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from torchvision import transforms
 from torchvision.models import vgg16, resnet18, alexnet
 from torch import nn
+from cnn_modle import CNNModel
 
 
 def load_dataset(dataset_name):
@@ -10,8 +13,10 @@ def load_dataset(dataset_name):
         dataset = CIFAR10(root='./data', train=True, download=True, transform=transforms.ToTensor())
     elif dataset_name == 'cifar100':
         dataset = CIFAR100(root='./data', train=True, download=True, transform=transforms.ToTensor())
-    elif dataset_name == 'mnist':
+    elif dataset_name == 'emnist':
         dataset = EMNIST(root='./data', train=True, download=True, transform=transforms.ToTensor(), split="digits")
+    elif dataset_name == 'mnist':
+        dataset = MNIST(root='./data', train=True, download=True, transform=transforms.ToTensor())
     else:
         raise ValueError(f"dataset_name does not contain {dataset_name}")
     return dataset
@@ -27,6 +32,8 @@ def load_model(model_name, num_classes):
     elif model_name == 'resnet18':
         model = resnet18(retrained="ResNet18_Weights.IMAGENET1K_V1")
         model.fc = nn.Linear(model.fc.in_features, num_classes)
+    elif model_name == 'cnn':
+        model = CNNModel(num_classes)
     else:
         raise ValueError(f"model_name does not contain {model_name}")
     return model
@@ -54,3 +61,35 @@ def get_client_data_indices(root_dir, dataset_name, split_method):
         }
 
     return client_indices, num_clients
+
+
+def plot_training_results(base_path, result_path=None, metrics=None):
+    if metrics is None:
+        metrics = ['accuracy', 'f1', 'loss', 'precision', 'recall']
+
+    if result_path is None:
+        result_path = base_path.replace('logs', 'result_image')
+    os.makedirs(result_path, exist_ok=True)  # 创建结果图片目录
+
+    # 读取所有的方法目录
+    methods = [dir for dir in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, dir))]
+
+    for metric in metrics:
+        plt.figure(figsize=(10, 6))
+
+        # 遍历每个方法，并读取相应的度量文件
+        for method in methods:
+            metric_path = os.path.join(base_path, method, f'{metric}.txt')
+            if os.path.exists(metric_path):
+                data = pd.read_csv(metric_path, header=None)
+                plt.plot(data, label=method)
+
+        plt.title(f'Training {metric.capitalize()} Over Epochs')
+        plt.xlabel('Epoch')
+        plt.ylabel(metric.capitalize())
+        plt.legend()
+        plt.grid(True)
+
+        # 保存图像
+        plt.savefig(os.path.join(result_path, f'{metric}.png'))
+        plt.close()

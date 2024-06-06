@@ -3,7 +3,7 @@ import argparse
 
 def parse_args_for_dataset():
     parser = argparse.ArgumentParser(description="Dataset splitting for federated learning")
-    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist'],
+    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist'],
                         help='dataset name')
     parser.add_argument('--clients_num', type=int, default=10, help='number of clients')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
@@ -16,6 +16,11 @@ def parse_args_for_dataset():
         help='Parameters that control the degree of non-IID.'
              'The smaller the alpha, the greater the task difference with dirichlet split method',
     )
+
+    parser.add_argument(
+        '--test_ratio', type=float, default=0.2,
+        help='The proportion of the test set to the overall dataset')
+
     parser.add_argument(
         '--number_label', type=int, default=2,
         help='Parameters that control the degree of non-IID.'
@@ -28,13 +33,21 @@ def parse_args_for_dataset():
     return args
 
 
+def parse_args_for_visualization():
+    parser = argparse.ArgumentParser(description="Visualize the parameters of the training process")
+    parser.add_argument('--log_dir', type=str, required=True, help='log directory')
+    parser.add_argument('--save_dir', type=str, default=None, help='save directory')
+    args = parser.parse_args()
+    return args
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg'],
                         help='federated learning method')
-    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100'],
+    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist'],
                         help='dataset name')
-    parser.add_argument('--model', type=str, default='vgg16', choices=['vgg16', 'resnet9', 'resnet18'],
+    parser.add_argument('--model', type=str, default='vgg16', choices=['vgg16', 'resnet9', 'resnet18', 'cnn'],
                         help='model name')
     parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of the local client during training')
     parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')
@@ -55,6 +68,7 @@ def parse_args():
                              'owns a subset of label')
     parser.add_argument('--dataset_indexes_dir', type=str, default='client_indices',
                         help='The root directory of the local client dataset index')
+    parser.add_argument('--is_generate_image', type=bool, default=True, help='whether or not to visualize the results')
 
     args = parser.parse_args()
     return args

@@ -31,13 +31,13 @@ def execute_fed_process(server, args):
         eval_results = server.evaluate()
         end_time = time.time()
         eval_results_str = ', '.join([f"{metric.capitalize()}: {value:.4f}" for metric, value in eval_results.items()])
-        print(f"Training time: {end_time - start_time}. Evaluation Results: {eval_results_str}")
+        print(f"Training time: {(end_time - start_time):.2f}. Evaluation Results: {eval_results_str}")
         save_log(eval_results, args.log_dir, args.fl_method)
 
 
 def execute_experiment(args, device):
     full_dataset = load_dataset(args.dataset_name)
-    if args.dataset_name == 'cifar10' or args.dataset_name == 'emnist':
+    if args.dataset_name == 'cifar10' or args.dataset_name == 'emnist' or args.dataset_name == 'mnist':
         num_classes = 10
     elif args.dataset_name == 'cifar100':
         num_classes = 100
@@ -70,3 +70,6 @@ if __name__ == '__main__':
     print(f"Using device: {compute_device}")
 
     execute_experiment(arguments, compute_device)
+    print("Done")
+
+
