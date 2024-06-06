@@ -1,18 +1,18 @@
 import torch
 from torch.quantization import QuantStub, DeQuantStub, QConfig, default_observer
-from fedcg_client import FedCGClient
+from clinets.fedcg_client import FedCGClient
 
 
 class QFedCGClient(FedCGClient):
     def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs)
         self.quantization_levels = kwargs.get('quantization_levels', 8)
-        self.initialize_quantization()
+        self.last_gradient = None
 
     def initialize_quantization(self):
         custom_observer = default_observer.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_affine,
-                                                     quant_min=-2**(self.quantization_levels-1),
-                                                     quant_max=2**(self.quantization_levels-1) - 1)
+                                                     quant_min=-2 ** (self.quantization_levels - 1),
+                                                     quant_max=2 ** (self.quantization_levels - 1) - 1)
         self.qconfig = QConfig(activation=custom_observer(), weight=custom_observer())
         self.quantizer = QuantStub()
         self.dequantizer = DeQuantStub()
@@ -45,19 +45,26 @@ class QFedCGClient(FedCGClient):
             quantized_gradients[name] = self.quantize(grad)
         return quantized_gradients
 
+    def calculate_quantization_levels(self, current_gradient):
+        # 假设 self.last_gradient 存储了上一次的梯度
+        if self.last_gradient is None:
+            self.last_gradient = current_gradient
+            return  # 第一次迭代时，没有之前的梯度可以比较
+
+        # 计算梯度创新：当前梯度与上一次梯度的差的L2范数
+        gradient_innovation = {name: (current_gradient[name] - self.last_gradient[name]).norm(2) for name in current_gradient}
+
+        # 基于梯度创新确定量化级别
+        for name, innovation in gradient_innovation.items():
+            if innovation > 1.0:  # 举例，阈值设置为1.0，可以根据实际情况调整
+                self.quantization_levels = max(self.quantization_levels - 1, 1)
+            else:
+                self.quantization_levels = min(self.quantization_levels + 1, 8)
+
+        # 更新 last_gradient 为当前梯度
+        self.last_gradient = current_gradient
+
     def train(self):
-        self.model.train()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        for epoch in range(self.epochs):
-            for x, labels in self.client_train_loader:
-                x, labels = x.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
-                outputs = self.model(x)
-                loss = self.criterion(outputs, labels)
-                loss.backward()
-                compressed_and_quantized_grads = self.compress_and_quantize_gradients()
-                for name, param in self.model.named_parameters():
-                    if name in compressed_and_quantized_grads:
-                        param.grad = compressed_and_quantized_grads[name]
-                optimizer.step()
-        return self.model.state_dict()
+        result = super().train()
+        self.calculate_quantization_levels(result)
+        return result

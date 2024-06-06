@@ -4,18 +4,16 @@ from datetime import datetime
 import torch
 from utils.args import parse_args
 from utils.utils import load_model, load_dataset, get_client_data_indices
-from clinets.client import ClientFactory
-from servers.server import ServerFactory
+from clinets.client_factory import ClientFactory
+from servers.server_factory import ServerFactory
 
 
 def save_log(eval_results, save_log_dir, fl_type):
     today_date = datetime.today().strftime('%Y-%m-%d')
 
-    # Create a directory for today's date
     today_dir = os.path.join(save_log_dir, today_date)
     os.makedirs(today_dir, exist_ok=True)
 
-    # Create a directory for FL
     log_dir = os.path.join(today_dir, fl_type)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -23,8 +21,6 @@ def save_log(eval_results, save_log_dir, fl_type):
         file_path = os.path.join(log_dir, f"{metric}.txt")
         with open(file_path, 'a') as file:
             file.write(f"{value}\n")
-
-    print(f"Evaluation results saved to {log_dir}")
 
 
 def execute_fed_process(server, args):
@@ -36,9 +32,6 @@ def execute_fed_process(server, args):
         end_time = time.time()
         eval_results_str = ', '.join([f"{metric.capitalize()}: {value:.4f}" for metric, value in eval_results.items()])
         print(f"Training time: {end_time - start_time}. Evaluation Results: {eval_results_str}")
-        print("Evaluation Results:")
-        for metric, value in eval_results.items():
-            print(f"{metric.capitalize()}: {value:.4f}")
         save_log(eval_results, args.log_dir, args.fl_method)
 
 
@@ -57,12 +50,9 @@ def execute_experiment(args, device):
                                                           args.split_method)
 
     criterion = torch.nn.CrossEntropyLoss()
-    clients = ClientFactory().create_client(num_clients, args.fl_method,
-                                            client_indices, full_dataset,
-                                            args.batch_size, args.lr,
-                                            args.local_epochs, criterion, device)
+    clients = ClientFactory().create_client(num_clients, args, client_indices, full_dataset, criterion, device)
 
-    central_server = ServerFactory().create_server(args.fl_method, clients, model, args.client_selection_rate, args.server_lr)
+    central_server = ServerFactory().create_server(args.fl_method, clients, device, model, args.client_selection_rate, args.server_lr)
 
     execute_fed_process(central_server, args)
 

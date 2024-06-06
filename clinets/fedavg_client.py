@@ -1,4 +1,5 @@
-from client import Client
+import torch
+from clinets.client import Client
 
 
 class FedAvgClient(Client):

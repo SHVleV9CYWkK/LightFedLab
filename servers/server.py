@@ -1,15 +1,15 @@
 import time
 import random
 import torch
-
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 
 
 class Server(ABC):
-    def __init__(self, clients, model, client_selection_rate=1, server_lr=0.01):
+    def __init__(self, clients, model, device, client_selection_rate=1, server_lr=0.01):
         self.clients = clients
         self.server_lr = server_lr
+        self.device = device
         self.client_selection_rate = client_selection_rate
         self.is_all_clients = client_selection_rate == 1
         if self.is_all_clients:
@@ -47,7 +47,7 @@ class Server(ABC):
 
         return average_results
 
-    def _handle_gradients(self, grad, client_id):
+    def _handle_gradients(self, grad):
         return grad
 
     def _weight_aggregation(self, weights_list):
@@ -64,14 +64,13 @@ class Server(ABC):
     def _gradient_aggregation(self, weights_list, dataset_len=None):
         # 获取模型参数并确定设备
         global_weights = self.model.state_dict()
-        device = next(self.model.parameters()).device  # 从模型的第一个参数获取设备信息
 
         # 准备用于累加梯度的字典，并确保所有张量都在同一设备上
-        sum_gradients = {name: torch.zeros_like(param).to(device) for name, param in global_weights.items()}
+        sum_gradients = {name: torch.zeros_like(param).to(self.device) for name, param in global_weights.items()}
 
         # 如果未提供数据集长度，假设每个权重相同
         if dataset_len is None:
-            dataset_len = torch.ones(len(weights_list), device=device)
+            dataset_len = torch.ones(len(weights_list), device=self.device)
 
         total_weight = sum(dataset_len)
 
@@ -79,15 +78,15 @@ class Server(ABC):
         for gradients, weight in zip(weights_list, dataset_len):
             for name, grad in gradients.items():
                 if grad is not None:
-                    sum_gradients[name] += grad.to(device) * weight  # 确保梯度在正确的设备上
+                    sum_gradients[name] += self._handle_gradients(grad).to(self.device) * weight  # 确保梯度在正确的设备上
 
         # 计算梯度的加权或非加权均值
         averaged_gradients = {name: sum_grad / total_weight for name, sum_grad in sum_gradients.items()}
 
-        # 检查梯度是否包含NaN或Inf
-        for name, sum_grad in averaged_gradients.items():
-            if torch.isnan(sum_grad).any() or torch.isinf(sum_grad).any():
-                print(f"Gradient for {name} contains NaN or Inf.")
+        # # 检查梯度是否包含NaN或Inf
+        # for name, sum_grad in averaged_gradients.items():
+        #     if torch.isnan(sum_grad).any() or torch.isinf(sum_grad).any():
+        #         print(f"Gradient for {name} contains NaN or Inf.")
 
         # 使用优化器更新模型参数
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.server_lr)
@@ -125,15 +124,3 @@ class Server(ABC):
         print("Evaluating model")
         average_eval_results = self._evaluate_model()
         return average_eval_results
-
-
-class ServerFactory:
-    def create_server(self, fl_type, clients, model, client_selection_rate=1, server_lr=1e-3):
-        if fl_type == 'fedavg':
-            server_prototype = FedAvgServer
-        elif fl_type == 'fedcg' or fl_type == 'qfedcg':
-            server_prototype = FedCGServer
-        else:
-            raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
-
-        return server_prototype(clients, model, client_selection_rate, server_lr)

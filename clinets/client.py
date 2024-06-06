@@ -4,9 +4,6 @@ import torch
 import torcheval.metrics.functional as metrics
 from torch.utils.data import DataLoader, Subset
 from copy import deepcopy
-from fedavg_client import FedAvgClient
-from fedcg_client import FedCGClient
-from qfedcg_client import QFedCGClient
 
 
 class Client(ABC):
@@ -66,30 +63,3 @@ class Client(ABC):
             'recall': recall.item(),
             'f1': f1.item()
         }
-
-
-class ClientFactory:
-    def create_client(self, num_client, fl_type, dataset_index, full_dataset,
-                      bz, lr, epochs, criterion, device, **kwargs):
-
-        if fl_type == 'fedavg':
-            client_prototype = FedAvgClient
-        elif fl_type == 'fedcg':
-            client_prototype = FedCGClient
-        elif fl_type == 'qfedcg':
-            client_prototype = QFedCGClient
-        else:
-            raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
-        clients = []
-        for idx in range(num_client):
-            clients.append(client_prototype(idx,
-                                            dataset_index[idx],
-                                            full_dataset,
-                                            bz,
-                                            lr,
-                                            epochs,
-                                            criterion,
-                                            device,
-                                            **kwargs))
-
-        return clients

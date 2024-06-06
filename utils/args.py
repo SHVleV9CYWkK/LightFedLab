@@ -42,6 +42,9 @@ def parse_args():
     parser.add_argument('--local_epochs', type=int, default=1, help='number of local epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--n_rounds', type=int, default=1, help='number of global rounds')
+    parser.add_argument('--compression_ratio', type=float, default=0.5, help='The default compression ratio for FedCG and QFedCG')
+    parser.add_argument('--quantization_levels', type=int, default=1, help='The default quantization level for QFedCG')
+    parser.add_argument('--is_send_gradients', type=bool, default=False, help='Controls whether the client uploads gradient aggregations, FedCG and QFedCG are not controlled by this parameter.')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--log_dir', type=str, default='logs', help='log directory')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'],
