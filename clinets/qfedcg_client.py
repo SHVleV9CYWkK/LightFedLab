@@ -13,7 +13,7 @@ class QFedCGClient(FedCGClient):
         custom_observer = default_observer.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_affine,
                                                      quant_min=-2 ** (self.quantization_levels - 1),
                                                      quant_max=2 ** (self.quantization_levels - 1) - 1)
-        self.qconfig = QConfig(activation=custom_observer(), weight=custom_observer())
+        self.qconfig = QConfig(activation=custom_observer, weight=custom_observer)
         self.quantizer = QuantStub()
         self.dequantizer = DeQuantStub()
         self.quantizer.qconfig = self.qconfig

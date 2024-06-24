@@ -4,8 +4,8 @@ from servers.fedcd_server import FedCGServer
 
 
 class QFedCGServer(FedCGServer):
-    def __init__(self, clients, model, device, client_selection_rate=1):
-        super().__init__(clients, model, device, client_selection_rate)
+    def __init__(self, clients, model, device, client_selection_rate=1, server_lr=0.01):
+        super().__init__(clients, model, device, client_selection_rate, server_lr)
         self.quantization_levels = {client.id: 1 for client in clients}
         self.last_gradients = {client.id: None for client in clients}
         self.l_max = 8
