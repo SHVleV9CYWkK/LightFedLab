@@ -9,27 +9,39 @@ class FedWCPClient(Client):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.global_model = None
+        self.support_sparse = kwargs.get('sparse_matrix', None)
 
     def receive_model(self, global_model):
         self.global_model = deepcopy(global_model).to(device=self.device)
 
     def init_local_model(self, model):
         self.model = deepcopy(model).to(device=self.device)
+        if self.support_sparse is not None:
+            self.support_sparse = next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu
+        if self.support_sparse:
+            print("Warning: Sparse matrices belong to the prototype stage")
 
     def cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
         mask_dict = {}
-
         for key, weight in self.model.state_dict().items():
             if 'weight' in key:
                 original_shape = weight.shape
                 kmeans = TorchKMeans(is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)
                 kmeans.fit(flattened_weights)
-                clustered_state_dict[key] = kmeans.centroids[kmeans.labels_].view(original_shape)
+
+                new_weights = kmeans.centroids[kmeans.labels_].view(original_shape)
                 is_zero_centroid = (kmeans.centroids == 0).view(-1)
                 mask = is_zero_centroid[kmeans.labels_].view(original_shape) == 0
                 mask_dict[key] = mask.bool()
+                if self.support_sparse:
+                    indices = mask.nonzero(as_tuple=False).t()
+                    values = new_weights[mask]
+                    sparse_tensor = torch.sparse_coo_tensor(indices, values, original_shape)
+                    clustered_state_dict[key] = sparse_tensor
+                else:
+                    clustered_state_dict[key] = new_weights
             else:
                 clustered_state_dict[key] = weight
                 mask_dict[key] = torch.ones_like(weight, dtype=torch.bool)
@@ -54,23 +66,18 @@ class FedWCPClient(Client):
         pruned_state_dict = {}
         for key, weight in self.model.state_dict().items():
             if key in mask_dict:
-                pruned_weight = weight * mask_dict[key]
-                pruned_state_dict[key] = pruned_weight
+                if self.support_sparse:
+                    mask = mask_dict[key]
+                    indices = mask.nonzero(as_tuple=False).t()
+                    values = weight[mask]
+                    sparse_tensor = torch.sparse_coo_tensor(indices, values, weight.size())
+                    pruned_state_dict[key] = sparse_tensor
+                else:
+                    pruned_weight = weight * mask_dict[key]
+                    pruned_state_dict[key] = pruned_weight
             else:
                 pruned_state_dict[key] = weight
         return pruned_state_dict
-
-    def convert_to_sparse(self, mask_dict):
-        state_dict = self.model.state_dict()
-        for key, param in state_dict.items():
-            if 'weight' in key and param.dim() > 1:
-                mask = mask_dict[key]
-                indices = mask.nonzero(as_tuple=False).t()
-                values = param[mask]
-                sparse_tensor = torch.sparse_coo_tensor(indices, values, param.size())
-                self.model.state_dict()[key].data = sparse_tensor
-            else:
-                self.model.state_dict()[key].data = param.data
 
     def train(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
@@ -79,8 +86,6 @@ class FedWCPClient(Client):
         self.model.load_state_dict(clustered_model_state_dict)
         momentum = self.compute_model_difference(initial_global_params)
         regularization_terms = self.compute_sparse_refined_regularization(mask)
-        if next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu:
-            self.convert_to_sparse(mask)
 
         self.model.train()
         decay_rate = 0.9
@@ -100,6 +105,4 @@ class FedWCPClient(Client):
                 optimizer.step()
                 pruned_model_state_dict = self.prune_model_weights(mask)
                 self.model.load_state_dict(pruned_model_state_dict)
-                if next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu:
-                    self.convert_to_sparse(mask)
             return self.model.state_dict()
