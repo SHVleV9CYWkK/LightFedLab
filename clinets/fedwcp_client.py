@@ -60,6 +60,18 @@ class FedWCPClient(Client):
                 pruned_state_dict[key] = weight
         return pruned_state_dict
 
+    def convert_to_sparse(self, mask_dict):
+        state_dict = self.model.state_dict()
+        for key, param in state_dict.items():
+            if 'weight' in key and param.dim() > 1:
+                mask = mask_dict[key]
+                indices = mask.nonzero(as_tuple=False).t()
+                values = param[mask]
+                sparse_tensor = torch.sparse_coo_tensor(indices, values, param.size())
+                self.model.state_dict()[key].data = sparse_tensor
+            else:
+                self.model.state_dict()[key].data = param.data
+
     def train(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         initial_global_params = {name: param.clone() for name, param in self.global_model.named_parameters()}
@@ -67,6 +79,8 @@ class FedWCPClient(Client):
         self.model.load_state_dict(clustered_model_state_dict)
         momentum = self.compute_model_difference(initial_global_params)
         regularization_terms = self.compute_sparse_refined_regularization(mask)
+        if next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu:
+            self.convert_to_sparse(mask)
 
         self.model.train()
         decay_rate = 0.9
@@ -86,4 +100,6 @@ class FedWCPClient(Client):
                 optimizer.step()
                 pruned_model_state_dict = self.prune_model_weights(mask)
                 self.model.load_state_dict(pruned_model_state_dict)
+                if next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu:
+                    self.convert_to_sparse(mask)
             return self.model.state_dict()
