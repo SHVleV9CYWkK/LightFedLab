@@ -1,6 +1,6 @@
 import torch
 from torch.quantization import QuantStub, DeQuantStub, default_qconfig
-from servers.fedcd_server import FedCGServer
+from servers.fedcg_server import FedCGServer
 
 
 class QFedCGServer(FedCGServer):

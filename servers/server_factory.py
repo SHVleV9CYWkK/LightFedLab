@@ -1,6 +1,7 @@
 from servers.fedavg_server import FedAvgServer
-from servers.fedcd_server import FedCGServer
+from servers.fedcg_server import FedCGServer
 from servers.qfedcg_server import QFedCGServer
+from servers.fedcc_server import FedCC
 
 
 class ServerFactory:
@@ -11,6 +12,8 @@ class ServerFactory:
             server_prototype = FedCGServer
         elif fl_type == 'qfedcg':
             server_prototype = QFedCGServer
+        elif fl_type == 'fedcc':
+            server_prototype = FedCC
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
