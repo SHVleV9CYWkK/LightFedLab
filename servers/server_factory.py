@@ -12,7 +12,7 @@ class ServerFactory:
             server_prototype = FedCGServer
         elif fl_type == 'qfedcg':
             server_prototype = QFedCGServer
-        elif fl_type == 'fedcc':
+        elif fl_type == 'fedwcp':
             server_prototype = FedWCPServer
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')

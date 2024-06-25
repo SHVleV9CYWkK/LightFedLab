@@ -17,7 +17,7 @@ class ClientFactory:
             client_prototype = FedCGClient
         elif fl_type == 'qfedcg':
             client_prototype = QFedCGClient
-        elif fl_type == 'fedcc':
+        elif fl_type == 'fedwcp':
             client_prototype = FedWCPClient
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
