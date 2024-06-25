@@ -4,7 +4,7 @@ from clinets.client import Client
 from utils.kmeans import TorchKMeans
 
 
-class FedCCClient(Client):
+class FedWCPClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
