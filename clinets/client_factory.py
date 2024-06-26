@@ -7,10 +7,6 @@ from clinets.fedwcp_client import FedWCPClient
 class ClientFactory:
     def create_client(self, num_client, args, dataset_index, full_dataset, criterion, device):
         fl_type = args.fl_method
-        is_gradients = args.is_send_gradients
-        fedcg_cr = args.compression_ratio
-        qfedcg_ql = args.quantization_levels
-        fedcc_lambda = args.reg_lambda
         if fl_type == 'fedavg':
             client_prototype = FedAvgClient
         elif fl_type == 'fedcg':
@@ -31,9 +27,10 @@ class ClientFactory:
                                             args.local_epochs,
                                             criterion,
                                             device,
-                                            is_send_gradients=is_gradients,
-                                            compression_ratio=fedcg_cr,
-                                            quantization_levels=qfedcg_ql,
-                                            reg_lambda=fedcc_lambda))
+                                            is_send_gradients=args.is_send_gradients,
+                                            compression_ratio=args.compression_ratio,
+                                            quantization_levels=args.quantization_levels,
+                                            reg_lambda=args.reg_lambda,
+                                            sparse_compute=args.sparse_compute))
 
         return clients

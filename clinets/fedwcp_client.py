@@ -9,7 +9,7 @@ class FedWCPClient(Client):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.global_model = None
-        self.support_sparse = kwargs.get('sparse_matrix', None)
+        self.support_sparse = kwargs.get('sparse_compute', None)
 
     def receive_model(self, global_model):
         self.global_model = deepcopy(global_model).to(device=self.device)
@@ -83,15 +83,15 @@ class FedWCPClient(Client):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         initial_global_params = {name: param.clone() for name, param in self.global_model.named_parameters()}
         clustered_model_state_dict, mask = self.cluster_and_prune_model_weights()
-        self.model.load_state_dict(clustered_model_state_dict)
         momentum = self.compute_model_difference(initial_global_params)
-        regularization_terms = self.compute_sparse_refined_regularization(mask)
+        # regularization_terms = self.compute_sparse_refined_regularization(mask)
+        self.model.load_state_dict(clustered_model_state_dict)
 
         self.model.train()
-        decay_rate = 0.9
+        decay_rate = 0.99
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
-                decay_factor = decay_rate ** idx
+                decay_factor = decay_rate ** (idx + 1)
                 x, labels = x.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(x)
@@ -100,8 +100,8 @@ class FedWCPClient(Client):
                 for name, param in self.model.named_parameters():
                     if name in momentum:
                         param.grad += decay_factor * momentum[name]
-                        if 'weight' in name:
-                            param.grad += regularization_terms[name]
+                        # if 'weight' in name:
+                        #     param.grad += regularization_terms[name]
                 optimizer.step()
                 pruned_model_state_dict = self.prune_model_weights(mask)
                 self.model.load_state_dict(pruned_model_state_dict)

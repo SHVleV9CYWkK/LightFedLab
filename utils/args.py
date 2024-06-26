@@ -58,7 +58,8 @@ def parse_args():
     parser.add_argument('--compression_ratio', type=float, default=0.5, help='The default compression ratio for FedCG and QFedCG')
     parser.add_argument('--quantization_levels', type=int, default=1, help='The default quantization level for QFedCG')
     parser.add_argument('--is_send_gradients', type=bool, default=False, help='Controls whether the client uploads gradient aggregations, FedCG and QFedCG are not controlled by this parameter.')
-    parser.add_argument('--reg_lambda', type=float, default=1e-2, help='The strength of the sparse refinement regularization term in FedCC')
+    parser.add_argument('--reg_lambda', type=float, default=1e-2, help='The strength of the sparse refinement regularization term in FedWCP')
+    parser.add_argument('--sparse_compute', type=bool, default=False, help='Sparse calculations are used in FedWCP')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--log_dir', type=str, default='logs', help='log directory')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'],
