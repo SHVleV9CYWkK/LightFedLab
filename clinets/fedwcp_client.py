@@ -88,7 +88,7 @@ class FedWCPClient(Client):
         self.model.load_state_dict(clustered_model_state_dict)
 
         self.model.train()
-        decay_rate = 0.99
+        decay_rate = 0.9
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
                 decay_factor = decay_rate ** (idx + 1)
