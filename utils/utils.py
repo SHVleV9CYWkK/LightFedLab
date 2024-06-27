@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from torchvision import transforms
-from torchvision.models import vgg16, resnet18, alexnet
+from torchvision.models import vgg16, resnet18, alexnet, resnet50
 from torch import nn
 from cnn_modle import CNNModel
 
@@ -31,6 +31,9 @@ def load_model(model_name, num_classes):
         model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
     elif model_name == 'resnet18':
         model = resnet18(retrained="ResNet18_Weights.IMAGENET1K_V1")
+        model.fc = nn.Linear(model.fc.in_features, num_classes)
+    elif model_name == 'resnet50':
+        model = resnet50(retrained="ResNet50_Weights.IMAGENET1K_V1")
         model.fc = nn.Linear(model.fc.in_features, num_classes)
     elif model_name == 'cnn':
         model = CNNModel(num_classes)

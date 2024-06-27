@@ -47,7 +47,7 @@ def parse_args():
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist'],
                         help='dataset name')
-    parser.add_argument('--model', type=str, default='vgg16', choices=['vgg16', 'resnet9', 'resnet18', 'cnn'],
+    parser.add_argument('--model', type=str, default='alexnet', choices=['vgg16', 'resnet18', 'cnn', 'resnet50', 'alexnet'],
                         help='model name')
     parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of the local client during training')
     parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')

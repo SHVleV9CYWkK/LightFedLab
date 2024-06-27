@@ -8,13 +8,16 @@ from clinets.client_factory import ClientFactory
 from servers.server_factory import ServerFactory
 
 
-def save_log(eval_results, save_log_dir, fl_type):
+def save_log(eval_results, save_log_dir, dataset_name, fl_type):
     today_date = datetime.today().strftime('%Y-%m-%d')
 
     today_dir = os.path.join(save_log_dir, today_date)
     os.makedirs(today_dir, exist_ok=True)
 
-    log_dir = os.path.join(today_dir, fl_type)
+    dataset_dir = os.path.join(today_dir, dataset_name)
+    os.makedirs(today_dir, exist_ok=True)
+
+    log_dir = os.path.join(dataset_dir, fl_type)
     os.makedirs(log_dir, exist_ok=True)
 
     for metric, value in eval_results.items():
@@ -32,7 +35,7 @@ def execute_fed_process(server, args):
         end_time = time.time()
         eval_results_str = ', '.join([f"{metric.capitalize()}: {value:.4f}" for metric, value in eval_results.items()])
         print(f"Training time: {(end_time - start_time):.2f}. Evaluation Results: {eval_results_str}")
-        save_log(eval_results, args.log_dir, args.fl_method)
+        save_log(eval_results, args.log_dir, args.dataset_name, args.fl_method)
 
 
 def execute_experiment(args, device):

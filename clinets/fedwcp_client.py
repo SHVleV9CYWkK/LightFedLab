@@ -91,14 +91,13 @@ class FedWCPClient(Client):
         last_loss = float('inf')
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
-                # Momentum annealing strategy 动量退火策略
-                # decay_factor = decay_rate ** (idx + 1)
                 x, labels = x.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(x)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
 
+                # Momentum annealing strategy 动量退火策略
                 if loss.item() < last_loss:
                     # 防止衰减因子变得太小
                     decay_factor = min(base_decay_rate ** (idx + 1), 0.99)
@@ -111,7 +110,10 @@ class FedWCPClient(Client):
                         param.grad += decay_factor * ref_momentum[name]
                         # if 'weight' in name:
                         #     param.grad += regularization_terms[name]
+
                 optimizer.step()
                 pruned_model_state_dict = self.prune_model_weights(mask)
                 self.model.load_state_dict(pruned_model_state_dict)
+
+                last_loss = loss.item()
             return self.model.state_dict()
