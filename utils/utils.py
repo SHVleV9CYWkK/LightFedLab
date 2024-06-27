@@ -8,15 +8,25 @@ from torch import nn
 from cnn_modle import CNNModel
 
 
-def load_dataset(dataset_name):
+def load_dataset(dataset_name, model_name):
+
+    transform_list = [transforms.ToTensor()]
+
+    if model_name in ['vgg16', 'resnet18', 'resnet50', 'alexnet']:
+        transform_list.insert(0, transforms.Resize(224))
+    elif model_name == 'cnn':
+        transform_list.insert(0, transforms.Resize(28))
+
+    transform = transforms.Compose(transform_list)
+
     if dataset_name == 'cifar10':
-        dataset = CIFAR10(root='./data', train=True, download=True, transform=transforms.ToTensor())
+        dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'cifar100':
-        dataset = CIFAR100(root='./data', train=True, download=True, transform=transforms.ToTensor())
+        dataset = CIFAR100(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'emnist':
-        dataset = EMNIST(root='./data', train=True, download=True, transform=transforms.ToTensor(), split="digits")
+        dataset = EMNIST(root='./data', train=True, download=True, transform=transform, split="digits")
     elif dataset_name == 'mnist':
-        dataset = MNIST(root='./data', train=True, download=True, transform=transforms.ToTensor())
+        dataset = MNIST(root='./data', train=True, download=True, transform=transform)
     else:
         raise ValueError(f"dataset_name does not contain {dataset_name}")
     return dataset
@@ -27,13 +37,13 @@ def load_model(model_name, num_classes):
         model = vgg16(weights="VGG16_Weights.IMAGENET1K_V1")
         model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
     elif model_name == 'alexnet':
-        model = alexnet(pretrained="AlexNet_Weights.IMAGENET1K_V1")
+        model = alexnet(weights="AlexNet_Weights.IMAGENET1K_V1")
         model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
     elif model_name == 'resnet18':
-        model = resnet18(retrained="ResNet18_Weights.IMAGENET1K_V1")
+        model = resnet18(weights="ResNet18_Weights.IMAGENET1K_V1")
         model.fc = nn.Linear(model.fc.in_features, num_classes)
     elif model_name == 'resnet50':
-        model = resnet50(retrained="ResNet50_Weights.IMAGENET1K_V1")
+        model = resnet50(weights="ResNet50_Weights.IMAGENET1K_V1")
         model.fc = nn.Linear(model.fc.in_features, num_classes)
     elif model_name == 'cnn':
         model = CNNModel(num_classes)

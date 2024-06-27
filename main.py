@@ -39,7 +39,7 @@ def execute_fed_process(server, args):
 
 
 def execute_experiment(args, device):
-    full_dataset = load_dataset(args.dataset_name)
+    full_dataset = load_dataset(args.dataset_name, args.model)
     if args.dataset_name == 'cifar10' or args.dataset_name == 'emnist' or args.dataset_name == 'mnist':
         num_classes = 10
     elif args.dataset_name == 'cifar100':
