@@ -47,8 +47,8 @@ class FedWCPClient(Client):
                 mask_dict[key] = torch.ones_like(weight, dtype=torch.bool)
         return clustered_state_dict, mask_dict
 
-    def compute_model_difference(self, global_model_state_dict):
-        global_dict = global_model_state_dict
+    def compute_global_local_model_difference(self):
+        global_dict = self.global_model.state_dict()
         local_dict = self.model.state_dict()
         difference_dict = {}
         for key in global_dict:
@@ -81,25 +81,34 @@ class FedWCPClient(Client):
 
     def train(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        initial_global_params = {name: param.clone() for name, param in self.global_model.named_parameters()}
         clustered_model_state_dict, mask = self.cluster_and_prune_model_weights()
-        momentum = self.compute_model_difference(initial_global_params)
+        ref_momentum = self.compute_global_local_model_difference()
         # regularization_terms = self.compute_sparse_refined_regularization(mask)
         self.model.load_state_dict(clustered_model_state_dict)
 
         self.model.train()
-        decay_rate = 0.9
+        base_decay_rate = 0.9
+        last_loss = float('inf')
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
-                decay_factor = decay_rate ** (idx + 1)
+                # Momentum annealing strategy 动量退火策略
+                # decay_factor = decay_rate ** (idx + 1)
                 x, labels = x.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(x)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
+
+                if loss.item() < last_loss:
+                    # 防止衰减因子变得太小
+                    decay_factor = min(base_decay_rate ** (idx + 1), 0.99)
+                else:
+                    # 防止衰减因子变得太大
+                    decay_factor = max(base_decay_rate ** (idx + 1) * 1.1, 0.1)
+
                 for name, param in self.model.named_parameters():
-                    if name in momentum:
-                        param.grad += decay_factor * momentum[name]
+                    if name in ref_momentum:
+                        param.grad += decay_factor * ref_momentum[name]
                         # if 'weight' in name:
                         #     param.grad += regularization_terms[name]
                 optimizer.step()
