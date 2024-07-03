@@ -8,14 +8,16 @@ class FedWCPClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
-        self.global_model = None
         self.support_sparse = kwargs.get('sparse_compute', None)
+        self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 
     def receive_model(self, global_model):
         self.global_model = deepcopy(global_model).to(device=self.device)
 
     def init_local_model(self, model):
         self.model = deepcopy(model).to(device=self.device)
+        self.preclustered_model_state_dict = self.model.state_dict()
+        self.new_clustered_model_state_dict, self.mask = self.cluster_and_prune_model_weights()
         if self.support_sparse is not None:
             self.support_sparse = next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu
         if self.support_sparse:
@@ -49,7 +51,7 @@ class FedWCPClient(Client):
 
     def compute_global_local_model_difference(self):
         global_dict = self.global_model.state_dict()
-        local_dict = self.model.state_dict()
+        local_dict = self.preclustered_model_state_dict
         difference_dict = {}
         for key in global_dict:
             difference_dict[key] = local_dict[key] - global_dict[key]
@@ -57,7 +59,7 @@ class FedWCPClient(Client):
 
     def compute_sparse_refined_regularization(self, mask):
         regularization_terms = {}
-        for name, param in self.model.named_parameters():
+        for name, param in self.preclustered_model_state_dict.items():
             if 'weight' in name:
                 regularization_terms[name] = self.reg_lambda * ~mask[name] * param.data
         return regularization_terms
@@ -81,10 +83,9 @@ class FedWCPClient(Client):
 
     def train(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        clustered_model_state_dict, mask = self.cluster_and_prune_model_weights()
         ref_momentum = self.compute_global_local_model_difference()
-        # regularization_terms = self.compute_sparse_refined_regularization(mask)
-        self.model.load_state_dict(clustered_model_state_dict)
+        regularization_terms = self.compute_sparse_refined_regularization(self.mask)
+        self.model.load_state_dict(self.new_clustered_model_state_dict)
 
         self.model.train()
         base_decay_rate = 0.9
@@ -108,12 +109,14 @@ class FedWCPClient(Client):
                 for name, param in self.model.named_parameters():
                     if name in ref_momentum:
                         param.grad += decay_factor * ref_momentum[name]
-                        # if 'weight' in name:
-                        #     param.grad += regularization_terms[name]
+                        if 'weight' in name:
+                            param.grad += regularization_terms[name]
 
                 optimizer.step()
-                pruned_model_state_dict = self.prune_model_weights(mask)
+                pruned_model_state_dict = self.prune_model_weights(self.mask)
                 self.model.load_state_dict(pruned_model_state_dict)
 
                 last_loss = loss.item()
-            return self.model.state_dict()
+        self.preclustered_model_state_dict = self.model.state_dict()
+        self.new_clustered_model_state_dict, self.mask = self.cluster_and_prune_model_weights()
+        return self.new_clustered_model_state_dict
