@@ -1,5 +1,5 @@
 
-# Lightweight Federated Learning Framework
+# LightFedLab
 
 This repository hosts a lightweight federated learning (FL) framework designed for academic purposes. It focuses on simplifying the experimental process of FL algorithms by providing clear and simple base classes (abstract classes). This approach eliminates the need for industry-specific code, such as Docker, making it ideal for algorithm-focused research without concerning about specific real-world implementations.
 
