@@ -51,6 +51,20 @@ python main.py --fl_method fedavg --dataset_name mnist --model cnn --lr 1e-4 --s
 - `--split_method`: Method used to split the dataset (`dirichlet`).
 - `--is_send_gradients`: Whether to send gradients back to server.
 
+
+### Visualizing Training Results
+
+After completing the federated learning experiments, you can visualize the training results to better understand the model performance and training dynamics. Use the following command to generate visualizations:
+
+```bash
+python visualize_results.py --log_dir logs/2024-06-26 --save_dir result_image/2024-06-26
+```
+
+- `--log_dir`: The directory where your training logs are stored. Replace `2024-06-26` with the date of your training session.
+- `--save_dir`: The directory where you want to save the visualization results. Similarly, replace `2024-06-26` with the appropriate date.
+
+Visualizations help in analyzing trends and patterns in the training process, facilitating further improvements in your federated learning experiments.
+
 ## Contributing
 
 We welcome contributions to improve the framework! Please submit pull requests or open an issue to discuss your ideas.
