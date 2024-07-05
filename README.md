@@ -58,4 +58,3 @@ We welcome contributions to improve the framework! Please submit pull requests o
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-```
