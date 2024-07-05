@@ -5,7 +5,7 @@ from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from torchvision import transforms
 from torchvision.models import vgg16, resnet18, alexnet, resnet50
 from torch import nn
-from cnn_modle import CNNModel
+from models import CNNModel
 
 
 def load_dataset(dataset_name, model_name):
