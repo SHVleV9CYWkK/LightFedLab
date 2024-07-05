@@ -8,16 +8,18 @@ from torch import nn
 from models.cnn_model import CNNModel
 
 
-def load_dataset(dataset_name, model_name):
+def load_dataset(dataset_name, model_name=None):
+    if model_name is not None:
+        transform_list = [transforms.ToTensor()]
 
-    transform_list = [transforms.ToTensor()]
+        if model_name in ['vgg16', 'resnet18', 'resnet50', 'alexnet']:
+            transform_list.insert(0, transforms.Resize(224))
+        elif model_name == 'cnn':
+            transform_list.insert(0, transforms.Resize(28))
 
-    if model_name in ['vgg16', 'resnet18', 'resnet50', 'alexnet']:
-        transform_list.insert(0, transforms.Resize(224))
-    elif model_name == 'cnn':
-        transform_list.insert(0, transforms.Resize(28))
-
-    transform = transforms.Compose(transform_list)
+        transform = transforms.Compose(transform_list)
+    else:
+        transform = transforms.ToTensor()
 
     if dataset_name == 'cifar10':
         dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
