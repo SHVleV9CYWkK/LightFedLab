@@ -17,13 +17,13 @@ class FedWCPClient(Client):
     def init_local_model(self, model):
         self.model = deepcopy(model).to(device=self.device)
         self.preclustered_model_state_dict = self.model.state_dict()
-        self.new_clustered_model_state_dict, self.mask = self.cluster_and_prune_model_weights()
+        self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
         if self.support_sparse is not None:
             self.support_sparse = next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu
         if self.support_sparse:
             print("Warning: Sparse matrices belong to the prototype stage")
 
-    def cluster_and_prune_model_weights(self):
+    def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
         mask_dict = {}
         for key, weight in self.model.state_dict().items():
@@ -49,7 +49,7 @@ class FedWCPClient(Client):
                 mask_dict[key] = torch.ones_like(weight, dtype=torch.bool)
         return clustered_state_dict, mask_dict
 
-    def compute_global_local_model_difference(self):
+    def _compute_global_local_model_difference(self):
         global_dict = self.global_model.state_dict()
         local_dict = self.preclustered_model_state_dict
         difference_dict = {}
@@ -57,14 +57,14 @@ class FedWCPClient(Client):
             difference_dict[key] = local_dict[key] - global_dict[key]
         return difference_dict
 
-    def compute_sparse_refined_regularization(self, mask):
+    def _compute_sparse_refined_regularization(self, mask):
         regularization_terms = {}
         for name, param in self.preclustered_model_state_dict.items():
             if 'weight' in name:
                 regularization_terms[name] = self.reg_lambda * ~mask[name] * param.data
         return regularization_terms
 
-    def prune_model_weights(self, mask_dict):
+    def _prune_model_weights(self, mask_dict):
         pruned_state_dict = {}
         for key, weight in self.model.state_dict().items():
             if key in mask_dict:
@@ -83,8 +83,8 @@ class FedWCPClient(Client):
 
     def train(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        ref_momentum = self.compute_global_local_model_difference()
-        regularization_terms = self.compute_sparse_refined_regularization(self.mask)
+        ref_momentum = self._compute_global_local_model_difference()
+        regularization_terms = self._compute_sparse_refined_regularization(self.mask)
         self.model.load_state_dict(self.new_clustered_model_state_dict)
 
         self.model.train()
@@ -113,10 +113,10 @@ class FedWCPClient(Client):
                             param.grad += regularization_terms[name]
 
                 optimizer.step()
-                pruned_model_state_dict = self.prune_model_weights(self.mask)
+                pruned_model_state_dict = self._prune_model_weights(self.mask)
                 self.model.load_state_dict(pruned_model_state_dict)
 
                 last_loss = loss.item()
         self.preclustered_model_state_dict = self.model.state_dict()
-        self.new_clustered_model_state_dict, self.mask = self.cluster_and_prune_model_weights()
+        self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
         return self.new_clustered_model_state_dict
