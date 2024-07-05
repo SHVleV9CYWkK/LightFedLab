@@ -126,4 +126,3 @@ class GatingLayer(torch.nn.Module):
         x = self.batch_norm(x)
         x = torch.sigmoid(x)
         return x
-
