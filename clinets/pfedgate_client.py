@@ -3,7 +3,7 @@ from clinets.client import Client
 from models.gating_layers import GatingLayer
 
 
-class pFedGateClient(Client):
+class PFedGateClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         data_sample, _ = full_dataset[0]
@@ -32,20 +32,13 @@ class pFedGateClient(Client):
                 optimizer.step()
 
         total_model_gradients = {}
-        total_gating_layer_gradients = {}
         for name, param in self.model.named_parameters():
             if initial_model_params[name] is not None:
                 # 计算总梯度变化
                 total_gradient_change = initial_model_params[name].data - param.data
                 total_model_gradients[name] = total_gradient_change
 
-        for name, param in self.gating_layer.named_parameters():
-            if initial_model_params[name] is not None:
-                # 计算总梯度变化
-                total_gradient_change = initial_gating_layer_params[name].data - param.data
-                total_gating_layer_gradients[name] = total_gradient_change
-
-        return total_model_gradients, total_gating_layer_gradients
+        return total_model_gradients
 
     def _prune_model_weights(self, mask):
         for name, param in self.model.named_parameters():

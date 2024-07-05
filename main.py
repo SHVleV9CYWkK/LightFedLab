@@ -55,7 +55,7 @@ def execute_experiment(args, device):
     criterion = torch.nn.CrossEntropyLoss()
     clients = ClientFactory().create_client(num_clients, args, client_indices, full_dataset, criterion, device)
 
-    central_server = ServerFactory().create_server(args.fl_method, clients, model, device, args.client_selection_rate, args.server_lr)
+    central_server = ServerFactory().create_server(args, clients, model, device)
 
     execute_fed_process(central_server, args)
 

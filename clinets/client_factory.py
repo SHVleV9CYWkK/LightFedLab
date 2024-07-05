@@ -2,6 +2,7 @@ from clinets.fedavg_client import FedAvgClient
 from clinets.fedcg_client import FedCGClient
 from clinets.qfedcg_client import QFedCGClient
 from clinets.fedwcp_client import FedWCPClient
+from clinets.pfedgate_client import PFedGateClient
 
 
 class ClientFactory:
@@ -15,6 +16,8 @@ class ClientFactory:
             client_prototype = QFedCGClient
         elif fl_type == 'fedwcp':
             client_prototype = FedWCPClient
+        elif fl_type == 'pfedgate':
+            client_prototype = PFedGateClient
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
         clients = []

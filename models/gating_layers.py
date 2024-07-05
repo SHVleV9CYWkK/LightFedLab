@@ -1,17 +1,15 @@
-# GatingLayer and Reshape from official implementation
-# https://github.com/yxdyc/pFedGate/blob/main/models/gating_layers.py
+"""
+GatingLayer and Reshape implementation
+Source: pFedGate Project, available at https://github.com/yxdyc/pFedGate/blob/main/models/gating_layers.py
+
+The GatingLayer and Reshape classes used in this project are based on the official implementation
+from the research paper "Efficient Personalized Federated Learning via Sparse Model-Adaptation".
+"""
 from copy import deepcopy
 
 import torch
 from torch import nn as nn
 from models import switchable_norm
-
-IN_PLANES_TYPE = {
-    "cifar10": 3,
-    "cifar100": 3,
-    "emnist": 1,
-    "femnist": 1
-}
 
 
 def map_module_name(name):
@@ -46,7 +44,18 @@ class Reshape(nn.Module):
 
 
 class GatingLayer(nn.Module):
-    def __init__(self, model_to_mask, device, input_feat_size, num_channels, fine_grained_block_split=1, seperate_trans=0):
+    """
+    Modifications:
+    - Replaced `dataset_name` parameter with `input_feat_size` and `num_channels` to allow the GatingLayer
+    to be utilized with a broader range of data inputs, enhancing its adaptability across different
+    model architectures and data types.
+
+    Note: The modifications are minor and aimed at improving the flexibility and general applicability
+    of the GatingLayer without altering the core functionality as described in the original paper.
+    """
+
+    def __init__(self, model_to_mask, device, input_feat_size, num_channels, fine_grained_block_split=1,
+                 seperate_trans=0):
         super().__init__()
         # ----------------------------  Split Blocks into linear and non-linear parts  ----------------------------
         # model-block size, used for structured masking
