@@ -21,8 +21,8 @@ class Client(ABC):
         self.num_classes = len(full_dataset.classes)
         client_train_dataset = Subset(full_dataset, indices=train_indices)
         client_val_dataset = Subset(full_dataset, indices=val_indices)
-        self.client_train_loader = DataLoader(client_train_dataset, batch_size=bz, shuffle=False)
-        self.client_val_loader = DataLoader(client_val_dataset, batch_size=bz, shuffle=False)
+        self.client_train_loader = DataLoader(client_train_dataset, batch_size=bz, shuffle=True, drop_last=True)
+        self.client_val_loader = DataLoader(client_val_dataset, batch_size=bz, shuffle=True, drop_last=True)
 
     @abstractmethod
     def train(self):

@@ -9,7 +9,7 @@ from copy import deepcopy
 
 import torch
 from torch import nn as nn
-from models import switchable_norm
+from models.pfedgate import switchable_norm
 
 
 def map_module_name(name):
@@ -126,11 +126,11 @@ class GatingLayer(nn.Module):
         if self.fine_grained_block_split != 1:
             self.block_size_lookup_table = torch.stack(self.block_size_lookup_table)
 
-        block_size_lookup_table_linear = self.block_size_lookup_table[self.linear_layer_block_idx].double()
-        block_size_lookup_table_non_linear = self.block_size_lookup_table[self.non_linear_layer_block_idx].double()
+        block_size_lookup_table_linear = self.block_size_lookup_table[self.linear_layer_block_idx].float()
+        block_size_lookup_table_non_linear = self.block_size_lookup_table[self.non_linear_layer_block_idx].float()
         block_size_lookup_table_linear /= block_size_lookup_table_linear.sum()
         block_size_lookup_table_non_linear /= block_size_lookup_table_non_linear.sum()
-        self.block_size_lookup_table_normalized = deepcopy(self.block_size_lookup_table).double()
+        self.block_size_lookup_table_normalized = deepcopy(self.block_size_lookup_table).float()
         self.block_size_lookup_table_normalized[self.linear_layer_block_idx] = block_size_lookup_table_linear
         self.block_size_lookup_table_normalized[self.non_linear_layer_block_idx] = block_size_lookup_table_non_linear
 
