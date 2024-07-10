@@ -37,8 +37,10 @@ class PFedGateClient(Client):
 
                 optimizer.zero_grad()
                 optimizer_gating_layer.zero_grad()
-                gating_weights = self.gating_layer(x)
-                self._prune_model_weights(gating_weights)  # 应用稀疏化
+                # gating_weights = self.gating_layer(x)
+                # self._prune_model_weights(gating_weights)  # 应用稀疏化
+                gated_scores, top_trans_weights, sparse_ratio_selected = self._get_top_gated_scores(x)
+                self._adapt_prune_model(top_trans_weights)
                 outputs = self.model(x)
                 loss = self.criterion(outputs, labels)
                 loss.backward()
@@ -83,7 +85,28 @@ class PFedGateClient(Client):
         #
         #     idx += 1  # 移动到下一个参数块
 
-    def adapt_prune_model(self, top_trans_weights):
+    def _get_top_gated_scores(self, x):
+        """ Get gating weights via the learned gating layer data-dependently """
+        # get gating weights data-dependently via gumbel trick
+        gating_logits, trans_weights = self.gating_layer(x)  # -> [Batch_size, Num_blocks]
+        # normed importance score
+        gated_scores = torch.sigmoid(gating_logits)
+        gated_scores = torch.mean(gated_scores, dim=0)  # -> [Num_blocks]
+
+        # separate trans
+        if id(gated_scores) != id(trans_weights):
+            # bounded model diff
+            trans_weights = torch.sigmoid(trans_weights)
+            trans_weights = torch.mean(trans_weights, dim=0)  # -> [Num_blocks]
+
+        # avoid cutting info flow (some internal sub-blocks are all zeros)
+        gated_scores = torch.clip(gated_scores, min=self.min_sparse_factor)  # -> [Num_blocks]
+
+        top_trans_weights, sparse_ratio_selected = self._select_top_trans_weights(gated_scores, trans_weights)
+
+        return gated_scores, top_trans_weights, sparse_ratio_selected
+
+    def _adapt_prune_model(self, top_trans_weights):
         """
 
         """
@@ -97,9 +120,7 @@ class PFedGateClient(Client):
                 # select at most the first gated_scores[para_idx] parameters as each dim
                 mask[round_fun(total_para_num * top_trans_weights[para_idx]):] = 0
                 mask = mask.view(ori_size)
-                para_name = self.gating_layer.block_names[para_idx]
-                # self.model.adapted_model_para[para_name] = mask * para
-                self.model.set_adapted_para(para_name, mask * para)
+                para.data *= mask
         else:
             for para_name, para in self.model.named_parameters():
                 mask = torch.ones_like(para, device=self.device).reshape(-1)
@@ -114,16 +135,14 @@ class PFedGateClient(Client):
                     mask[block_element_begin:block_element_end_selected] *= top_trans_weights[i]
                     mask[block_element_end_selected:block_element_end] = 0
                 mask = mask.view(para.shape)
-                # self.model.adapted_model_para[para_name] = mask * para
-                self.model.set_adapted_para(para_name, mask * para)
+                para.data *= mask
         return top_trans_weights.detach()
 
-    def _select_top_trans_weights(self, gating_weights):
+    def _select_top_trans_weights(self, gated_scores, trans_weight):
         """
 
         """
 
-        gated_scores, trans_weight = gating_weights
         if self.sparse_factor == 1:
             return trans_weight, torch.tensor(1.0)
 

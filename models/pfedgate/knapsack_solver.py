@@ -1,7 +1,5 @@
 import numpy as np
 import torch
-import itertools
-from numba import jit
 
 
 class KnapsackSolver01(object):
