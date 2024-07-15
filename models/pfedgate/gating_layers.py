@@ -54,7 +54,7 @@ class GatingLayer(nn.Module):
     of the GatingLayer without altering the core functionality as described in the original paper.
     """
 
-    def __init__(self, model_to_mask, device, input_feat_size, num_channels, fine_grained_block_split=1,
+    def __init__(self, model_to_mask, device, input_feat_size, num_channels, fine_grained_block_split=5,
                  seperate_trans=0):
         super().__init__()
         # ----------------------------  Split Blocks into linear and non-linear parts  ----------------------------
