@@ -9,7 +9,7 @@ class LossBasedLRScheduler:
         self.current_lr = initial_lr
 
     def step(self, current_loss):
-        if current_loss <= self.min_loss:
+        if current_loss < self.min_loss:
             self.min_loss = current_loss
             self.loss_increase_count = 0
         else:

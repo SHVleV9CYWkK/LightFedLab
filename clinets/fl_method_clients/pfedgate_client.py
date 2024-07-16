@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torcheval.metrics.functional as metrics
 from clinets.client import Client
 from models.pfedgate.gating_layers import GatingLayer
 from models.pfedgate.knapsack_solver import KnapsackSolver01
@@ -17,7 +18,8 @@ class PFedGateClient(Client):
         self.knapsack_solver = None
         self.sparse_factor = kwargs.get('sparse_factor', 0.5)
         self.gated_scores_scale_factor = 10
-        self.optimizer = self.opt_for_gating = self.lr_scheduler_for_gating = None
+        # self.optimizer = self.opt_for_gating = None
+        # self.lr_scheduler_for_gating = self.lr_scheduler = None
 
     def init_gating_layer(self):
         self.gating_layer = GatingLayer(self.model, self.device, self.input_feat_size, self.num_channels)
@@ -28,9 +30,10 @@ class PFedGateClient(Client):
             item_num_max=len(self.gating_layer.block_size_lookup_table),
             weight_max=round(self.sparse_factor * self.total_model_size.item())
         )
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        self.opt_for_gating = torch.optim.Adam(self.gating_layer.parameters(), lr=0.1)
-        self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, 'reduce_on_plateau')
+        # self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        # self.opt_for_gating = torch.optim.SGD(self.gating_layer.parameters(), lr=0.1)
+        # self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, 'reduce_on_plateau')
+        # self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
 
     def _get_top_gated_scores(self, x):
         """ Get gating weights via the learned gating layer data-dependently """
@@ -149,13 +152,12 @@ class PFedGateClient(Client):
         """
 
         """
-        self.opt_for_gating.zero_grad()
-        self.optimizer.zero_grad()
+        # self.opt_for_gating.zero_grad()
+        # self.optimizer.zero_grad()
 
         x = x.to(self.device).type(torch.float32)
         y = y.to(self.device)
 
-        x = self.gating_layer.norm_input_layer(x)
 
         # get personalized masks via gating layer
         _, top_trans_weights, _ = self._get_top_gated_scores(x)
@@ -163,37 +165,69 @@ class PFedGateClient(Client):
         _ = self._adapt_prune_model(top_trans_weights)
 
         y_pred = self.model.adapted_forward(x)
+        # y_pred = self.model(x)
         loss_vec = self.criterion(y_pred, y)
-        loss_meta_model = loss_vec.mean()
 
-        loss_gating_layer = loss_meta_model
+        loss_vec.backward()
+        # torch.nn.utils.clip_grad_norm_(self.gating_layer.parameters(), max_norm=10, norm_type=2)
+        # self.opt_for_gating.step()
 
-        loss_gating_layer.backward()
-        torch.nn.utils.clip_grad_norm_(self.gating_layer.parameters(), max_norm=10, norm_type=2)
-        self.opt_for_gating.step()
-
-        self.lr_scheduler_for_gating.step(loss_meta_model)
-
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
-        self.optimizer.step()
-
-        self.model.del_adapted_para()
+        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
+        # self.optimizer.step()
 
     def train(self):
         self.model.train()
         self.gating_layer.train()
-        initial_model_params = {name: param.clone() for name, param in self.model.named_parameters()}
+
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        opt_for_gating = torch.optim.SGD(self.gating_layer.parameters(), lr=self.lr)
 
         for epoch in range(self.epochs):
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
+                optimizer.zero_grad()
+                opt_for_gating.zero_grad()
                 self.fit_batch(x, labels)
+                opt_for_gating.step()
+                optimizer.step()
 
-        total_model_gradients = {}
-        for name, param in self.model.named_parameters():
-            if initial_model_params[name] is not None:
-                # 计算总梯度变化
-                total_gradient_change = initial_model_params[name].data - param.data
-                total_model_gradients[name] = total_gradient_change
+                self.model.del_adapted_para()
 
-        return total_model_gradients
+        return self.model.state_dict()
+
+    def evaluate_local_model(self):
+        self.model.eval()
+        self.gating_layer.eval()
+        total_loss = 0
+        all_labels = []
+        all_predictions = []
+
+        with torch.no_grad():
+            for x, labels in self.client_val_loader:
+                x, labels = x.to(self.device), labels.to(self.device)
+                # _, top_trans_weights, _ = self._get_top_gated_scores(x)
+                # _ = self._adapt_prune_model(top_trans_weights)
+                # outputs = self.model.adapted_forward(x).to(self.device)
+                outputs = self.model(x)
+                loss = self.criterion(outputs, labels)
+                total_loss += loss.item() * x.size(0)
+                _, predicted = torch.max(outputs.data, 1)
+                all_labels.append(labels)
+                all_predictions.append(predicted)
+
+        all_labels = torch.cat(all_labels)
+        all_predictions = torch.cat(all_predictions)
+
+        avg_loss = total_loss / self.val_dataset_len
+        accuracy = metrics.multiclass_accuracy(all_predictions, all_labels, num_classes=self.num_classes)
+        # precision = metrics.multiclass_precision(all_predictions, all_labels, num_classes=self.num_classes)
+        # recall = metrics.multiclass_recall(all_predictions, all_labels, num_classes=self.num_classes)
+        # f1 = metrics.multiclass_f1_score(all_predictions, all_labels, num_classes=self.num_classes)
+
+        return {
+            'loss': avg_loss,
+            'accuracy': accuracy.item(),
+            # 'precision': precision.item(),
+            # 'recall': recall.item(),
+            # 'f1': f1.item()
+        }
