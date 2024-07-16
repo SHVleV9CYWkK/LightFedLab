@@ -122,7 +122,7 @@ def split_list_by_indices(l, indices):
     return res
 
 
-def split_dataset_by_clusters(n_clients, n_classes, dataset, alpha, test_size, frac, seed):
+def split_dataset_by_clusters(n_clients, dataset, alpha, n_clusters, test_size, frac, seed):
     """
     split classification dataset among `n_clients`. The dataset is split as follow:
         1) classes are grouped into `n_clusters`
@@ -138,9 +138,13 @@ def split_dataset_by_clusters(n_clients, n_classes, dataset, alpha, test_size, f
     :param frac: fraction of dataset to use
     :param test_size: scale size of the test set
     :param seed:
+    :param n_clusters: number of clusters to consider; if it is `-1`, then `n_clusters = n_classes`
     :return: list (size `n_clients`) of subgroups, each subgroup is a list of indices.
     """
-    n_clusters = n_classes
+
+    n_classes = len(torch.unique(dataset.targets))
+    if n_clusters == -1:
+        n_clusters = n_classes
 
     rng = random.Random(seed)
     np.random.seed(seed)
@@ -216,11 +220,11 @@ if __name__ == "__main__":
 
     full_dataset = load_dataset(args.dataset_name)
     if args.split_method == "dirichlet":
-        indices = split_data_with_dirichlet(args.clients_num, args.alpha, full_dataset, args.test_ratio, args.seed)
+        indices = split_data_with_dirichlet(args.clients_num, args.alpha, full_dataset, args.test_ratio, args.frac, args.seed)
     elif args.split_method == "label":
-        indices = split_data_with_label(args.clients_num, args.number_label, full_dataset, args.test_ratio, args.seed)
+        indices = split_data_with_label(args.clients_num, args.number_label, full_dataset, args.test_ratio, args.frac, args.seed)
     elif args.split_method == "clusters":
-        indices = split_dataset_by_clusters(args.clients_num, args.number_label, full_dataset, args.alpha, args.test_ratio, args.s_frac, args.seed)
+        indices = split_dataset_by_clusters(args.clients_num, full_dataset, args.alpha, args.n_clusters, args.test_ratio, args.frac, args.seed)
     else:
         raise ValueError(f"split_method does not contain {args.split_method}")
 

@@ -9,19 +9,7 @@ from torch import nn
 from models.cnn_model import CNNModel, LeafCNN1, LeNet
 
 
-def load_dataset(dataset_name, model_name=None):
-    # if model_name is not None:
-    #     transform_list = [transforms.ToTensor()]
-    #
-    #     if model_name in ['vgg16', 'resnet18', 'resnet50', 'alexnet']:
-    #         transform_list.insert(0, transforms.Resize(224))
-    #     elif model_name == 'cnn':
-    #         transform_list.insert(0, transforms.Resize(28))
-    #
-    #     transform = transforms.Compose(transform_list)
-    # else:
-    #     transform = transforms.ToTensor()
-
+def load_dataset(dataset_name):
     if dataset_name == 'cifar10':
         transform = transforms.Compose([
             transforms.ToTensor(),

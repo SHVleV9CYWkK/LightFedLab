@@ -6,6 +6,7 @@ def parse_args_for_dataset():
     parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist'],
                         help='dataset name')
     parser.add_argument('--clients_num', type=int, default=10, help='number of clients')
+    parser.add_argument('--n_clusters', type=int, default=-1, help='number of clusters using clusters split method')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--split_method', type=str, default='train', choices=['dirichlet', 'label', 'clusters'],
                         help='The methods of splitting the data set to generate non-IID are dirichlet and label '
@@ -16,6 +17,10 @@ def parse_args_for_dataset():
         help='Parameters that control the degree of non-IID.'
              'The smaller the alpha, the greater the task difference',
     )
+
+    parser.add_argument(
+        '--frac', type=float, default=1.0,
+        help='The proportion of a partial dataset to the entire dataset is adopted')
 
     parser.add_argument(
         '--test_ratio', type=float, default=0.2,
