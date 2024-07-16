@@ -5,9 +5,21 @@ from itertools import cycle
 from utils.args import *
 from sklearn.model_selection import train_test_split
 from utils.utils import *
+from torch.utils.data import Subset
 
 
-def split_data_with_dirichlet(num_clients, a, dataset, test_size, seed):
+def reduce_dataset(dataset, ratio):
+    total_indices = list(range(len(dataset)))
+    np.random.shuffle(total_indices)
+    subset_indices = total_indices[:int(ratio * len(dataset))]
+    return Subset(dataset, subset_indices), subset_indices
+
+
+def split_data_with_dirichlet(num_clients, a, dataset, test_size, frac, seed):
+    np.random.seed(seed)
+    total_samples_per_label = {label: int(len(np.where(np.array(dataset.targets) == label)[0]) * frac)
+                               for label in range(len(dataset.classes))}
+
     # 分配数据到客户端
     data_indices = [np.array([]) for _ in range(num_clients)]
     min_size = 0
@@ -15,13 +27,15 @@ def split_data_with_dirichlet(num_clients, a, dataset, test_size, seed):
         # 为每个类别生成Dirichlet分布
         for label in range(len(dataset.classes)):
             label_indices = np.where(np.array(dataset.targets) == label)[0]
+            np.random.shuffle(label_indices)
+            label_indices = label_indices[:total_samples_per_label[label]]
             # 使用Dirichlet分布分配这个类别的索引
             distributed_indices = np.random.dirichlet(np.repeat(a, num_clients)) * len(label_indices)
             distributed_indices = np.cumsum(distributed_indices).astype(int)
             data_indices = [np.concatenate((data_indices[i], label_indices[
-                                                             distributed_indices[i - 1]:distributed_indices[
-                                                                 i]])) if i != 0 else np.concatenate(
-                (data_indices[i], label_indices[:distributed_indices[i]])) for i in range(num_clients)]
+                                                             distributed_indices[i - 1]:distributed_indices[i]]))
+                            if i != 0 else np.concatenate((data_indices[i], label_indices[:distributed_indices[i]]))
+                            for i in range(num_clients)]
         min_size = min([len(i) for i in data_indices])
         data_indices = [i.astype(int) for i in data_indices]
 
@@ -33,7 +47,9 @@ def split_data_with_dirichlet(num_clients, a, dataset, test_size, seed):
     return train_val_split
 
 
-def split_data_with_label(number_clients, number_client_label, dataset, test_size, seed):
+def split_data_with_label(number_clients, number_client_label, dataset, test_size, frac, seed):
+    np.random.seed(seed)
+
     number_labels = len(torch.unique(dataset.targets))
 
     if number_client_label > number_labels:
@@ -54,7 +70,9 @@ def split_data_with_label(number_clients, number_client_label, dataset, test_siz
     clients_data_indices = [[] for _ in range(number_clients)]
     for label, clients in label_to_clients.items():
         label_indices = np.where(np.array(dataset.targets) == label)[0]
-        split_indices = np.array_split(label_indices, len(clients))
+        np.random.shuffle(label_indices)  # 随机化索引
+        frac_label_indices = label_indices[:int(len(label_indices) * frac)]  # 取 frac 比例的索引
+        split_indices = np.array_split(frac_label_indices, len(clients))
         for i, client in enumerate(clients):
             clients_data_indices[client].extend(split_indices[i].tolist())
 
@@ -104,7 +122,7 @@ def split_list_by_indices(l, indices):
     return res
 
 
-def split_dataset_by_clusters(n_clients, n_classes, dataset, alpha, test_size, frac=1, seed=1234):
+def split_dataset_by_clusters(n_clients, n_classes, dataset, alpha, test_size, frac, seed):
     """
     split classification dataset among `n_clients`. The dataset is split as follow:
         1) classes are grouped into `n_clusters`
@@ -202,7 +220,7 @@ if __name__ == "__main__":
     elif args.split_method == "label":
         indices = split_data_with_label(args.clients_num, args.number_label, full_dataset, args.test_ratio, args.seed)
     elif args.split_method == "clusters":
-        indices = split_dataset_by_clusters(args.clients_num, args.number_label, full_dataset, args.alpha, args.test_ratio, args.seed)
+        indices = split_dataset_by_clusters(args.clients_num, args.number_label, full_dataset, args.alpha, args.test_ratio, args.s_frac, args.seed)
     else:
         raise ValueError(f"split_method does not contain {args.split_method}")
 

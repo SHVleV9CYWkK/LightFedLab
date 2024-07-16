@@ -5,29 +5,45 @@ from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from torchvision import transforms
 from torchvision.models import vgg16, resnet18, alexnet, resnet50
 from torch import nn
-from models.cnn_model import CNNModel
+
+from models.cnn_model import CNNModel, LeafCNN1, LeNet
 
 
 def load_dataset(dataset_name, model_name=None):
-    if model_name is not None:
-        transform_list = [transforms.ToTensor()]
-
-        if model_name in ['vgg16', 'resnet18', 'resnet50', 'alexnet']:
-            transform_list.insert(0, transforms.Resize(224))
-        elif model_name == 'cnn':
-            transform_list.insert(0, transforms.Resize(28))
-
-        transform = transforms.Compose(transform_list)
-    else:
-        transform = transforms.ToTensor()
+    # if model_name is not None:
+    #     transform_list = [transforms.ToTensor()]
+    #
+    #     if model_name in ['vgg16', 'resnet18', 'resnet50', 'alexnet']:
+    #         transform_list.insert(0, transforms.Resize(224))
+    #     elif model_name == 'cnn':
+    #         transform_list.insert(0, transforms.Resize(28))
+    #
+    #     transform = transforms.Compose(transform_list)
+    # else:
+    #     transform = transforms.ToTensor()
 
     if dataset_name == 'cifar10':
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        ])
+
         dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'cifar100':
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        ])
         dataset = CIFAR100(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'emnist':
-        dataset = EMNIST(root='./data', train=True, download=True, transform=transform, split="digits")
+        transform = transforms.Compose(
+            [transforms.ToTensor(),
+             transforms.Normalize((0.1307,), (0.3081,))
+             ]
+        )
+        dataset = EMNIST(root='./data', train=True, download=True, transform=transform, split="byclass")
     elif dataset_name == 'mnist':
+        transform = transforms.ToTensor()
         dataset = MNIST(root='./data', train=True, download=True, transform=transform)
     else:
         raise ValueError(f"dataset_name does not contain {dataset_name}")
@@ -49,6 +65,10 @@ def load_model(model_name, num_classes):
         model.fc = nn.Linear(model.fc.in_features, num_classes)
     elif model_name == 'cnn':
         model = CNNModel(num_classes)
+    elif model_name == 'leafcnn1':
+        model = LeafCNN1(num_classes)
+    elif model_name == 'lenet':
+        model = LeNet(num_classes)
     else:
         raise ValueError(f"model_name does not contain {model_name}")
     return model
