@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 
 class CNNModel(torch.nn.Module):
@@ -45,10 +46,10 @@ class LeafCNN1(torch.nn.Module):
         # 'fc1.weight', 'fc1.bias', 'output.weight', 'output.bias']
 
     def forward(self, x):
-        x = self.pool(torch.F.relu(self.conv1(x)))
-        x = self.pool(torch.F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
         x = x.view(-1, 64 * 4 * 4)
-        x = torch.F.relu(self.fc1(x))
+        x = F.relu(self.fc1(x))
         x = self.output(x)
         return x
 
@@ -90,7 +91,7 @@ class LeNet(LeafCNN1):
         x = self.pool(torch.F.relu(self.conv1(x)))
         x = self.pool(torch.F.relu(self.conv2(x)))
         x = x.view(-1, 2 * self.n_kernels * 5 * 5)
-        x = torch.F.relu(self.fc1(x))
-        x = torch.F.relu(self.fc2(x))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         x = self.output(x)
         return x

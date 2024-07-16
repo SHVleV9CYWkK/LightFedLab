@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 import torch
 from utils.args import parse_args
+from utils.lr_scheduler import LossBasedLRScheduler
 from utils.utils import load_model, load_dataset, get_client_data_indices
 from clinets.client_factory import ClientFactory
 from servers.server_factory import ServerFactory
@@ -27,6 +28,8 @@ def save_log(eval_results, save_log_dir, dataset_name, fl_type):
 
 
 def execute_fed_process(server, args):
+    if args.enable_scheduler:
+        lr_scheduler = LossBasedLRScheduler(initial_lr=args.lr, factor=0.5, patience=3, min_lr=1e-6)
     for r in range(args.n_rounds):
         print(f"------------\nRound {r}")
         start_time = time.time()
@@ -36,20 +39,15 @@ def execute_fed_process(server, args):
         eval_results_str = ', '.join([f"{metric.capitalize()}: {value:.4f}" for metric, value in eval_results.items()])
         print(f"Training time: {(end_time - start_time):.2f}. Evaluation Results: {eval_results_str}")
         save_log(eval_results, args.log_dir, args.dataset_name, args.fl_method)
+        if args.enable_scheduler:
+            lr_scheduler.step(eval_results['loss'])
+            server.lr_scheduler(lr_scheduler.get_lr())
 
 
 def execute_experiment(args, device):
-    full_dataset = load_dataset(args.dataset_name, args.model)
-    if args.dataset_name == 'cifar10' or args.dataset_name == 'mnist':
-        num_classes = 10
-    elif args.dataset_name == 'cifar100':
-        num_classes = 100
-    elif args.dataset_name == 'emnist':
-        num_classes = 62
-    else:
-        raise ValueError(f"Invalid dataset name: {args.dataset_name}")
+    full_dataset = load_dataset(args.dataset_name)
 
-    model = load_model(args.model, num_classes=num_classes).to(device)
+    model = load_model(args.model, num_classes=len(torch.unique(full_dataset.targets))).to(device)
 
     client_indices, num_clients = get_client_data_indices(args.dataset_indexes_dir, args.dataset_name,
                                                           args.split_method)

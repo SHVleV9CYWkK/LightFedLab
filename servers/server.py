@@ -124,3 +124,8 @@ class Server(ABC):
         print("Evaluating model")
         average_eval_results = self._evaluate_model()
         return average_eval_results
+
+    def lr_scheduler(self, lr):
+        for client in self.clients:
+            client.lr = lr
+

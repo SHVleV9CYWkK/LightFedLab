@@ -69,13 +69,15 @@ def parse_args():
     parser.add_argument('--log_dir', type=str, default='logs', help='log directory')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'],
                         help='determine the computing platform')
-    parser.add_argument('--split_method', type=str, default='dirichlet', choices=['dirichlet', 'label'],
+    parser.add_argument('--split_method', type=str, default='dirichlet', choices=['dirichlet', 'label', 'clusters'],
                         help='The methods of splitting the data set to generate non-IID are dirichlet and label '
                              'respectively. dirichlet is using dirichlet distributed. label indicates that the client '
                              'owns a subset of label')
     parser.add_argument('--dataset_indexes_dir', type=str, default='client_indices',
                         help='The root directory of the local client dataset index')
     parser.add_argument('--is_generate_image', type=bool, default=True, help='whether or not to visualize the results')
+
+    parser.add_argument('--enable_scheduler', type=bool, default=True, help='whether to enable the learning rate scheduler')
 
     args = parser.parse_args()
     return args
