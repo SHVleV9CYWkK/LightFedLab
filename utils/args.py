@@ -7,14 +7,14 @@ def parse_args_for_dataset():
                         help='dataset name')
     parser.add_argument('--clients_num', type=int, default=10, help='number of clients')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
-    parser.add_argument('--split_method', type=str, default='train', choices=['dirichlet', 'label'],
+    parser.add_argument('--split_method', type=str, default='train', choices=['dirichlet', 'label', 'clusters'],
                         help='The methods of splitting the data set to generate non-IID are dirichlet and label '
                              'respectively. dirichlet is using dirichlet distributed. label indicates that the client '
                              'owns a subset of label')
     parser.add_argument(
         '--alpha', type=float, default=0.1,
         help='Parameters that control the degree of non-IID.'
-             'The smaller the alpha, the greater the task difference with dirichlet split method',
+             'The smaller the alpha, the greater the task difference',
     )
 
     parser.add_argument(
