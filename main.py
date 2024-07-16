@@ -65,6 +65,8 @@ if __name__ == '__main__':
     torch.manual_seed(arguments.seed)
 
     if arguments.device == "cuda" and torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         compute_device = torch.device("cuda")
     elif arguments.device == "mps" and torch.backends.mps.is_available():
         compute_device = torch.device("mps:0")

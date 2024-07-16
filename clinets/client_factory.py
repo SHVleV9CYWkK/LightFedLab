@@ -1,8 +1,8 @@
-from clinets.fedavg_client import FedAvgClient
-from clinets.fedcg_client import FedCGClient
-from clinets.qfedcg_client import QFedCGClient
-from clinets.fedwcp_client import FedWCPClient
-from clinets.pfedgate_client import PFedGateClient
+from clinets.fl_method_clients.fedavg_client import FedAvgClient
+from clinets.fl_method_clients.fedcg_client import FedCGClient
+from clinets.fl_method_clients.qfedcg_client import QFedCGClient
+from clinets.fl_method_clients.fedwcp_client import FedWCPClient
+from clinets.fl_method_clients.pfedgate_client import PFedGateClient
 
 
 class ClientFactory:

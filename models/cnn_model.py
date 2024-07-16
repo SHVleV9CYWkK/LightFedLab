@@ -53,6 +53,28 @@ class LeafCNN1(torch.nn.Module):
         x = self.output(x)
         return x
 
+    def adapted_forward(self, x):
+        # forward using the adapted parameters
+        x = self.pool(F.relu(self.conv1._conv_forward(
+            x, weight=self.adapted_model_para["conv1.weight"], bias=self.adapted_model_para["conv1.bias"])))
+        x = self.pool(F.relu(self.conv2._conv_forward(
+            x, weight=self.adapted_model_para["conv2.weight"], bias=self.adapted_model_para["conv2.bias"])))
+        x = x.view(-1, 64 * 4 * 4)
+        x = F.relu(F.linear(
+            x, weight=self.adapted_model_para["fc1.weight"], bias=self.adapted_model_para["fc1.bias"]))
+        x = F.relu(F.linear(
+            x, weight=self.adapted_model_para["output.weight"], bias=self.adapted_model_para["output.bias"]))
+        return x
+
+    def set_adapted_para(self, name, val):
+        self.adapted_model_para[name] = val
+
+    def del_adapted_para(self):
+        for key, val in self.adapted_model_para.items():
+            if self.adapted_model_para[key] is not None:
+                self.adapted_model_para[key].grad = None
+                self.adapted_model_para[key] = None
+
 
 class LeNet(LeafCNN1):
     """
@@ -94,4 +116,19 @@ class LeNet(LeafCNN1):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.output(x)
+        return x
+
+    def adapted_forward(self, x):
+        # forward using the adapted parameters
+        x = self.pool(F.relu(self.conv1._conv_forward(
+            x, weight=self.adapted_model_para["conv1.weight"], bias=self.adapted_model_para["conv1.bias"])))
+        x = self.pool(F.relu(self.conv2._conv_forward(
+            x, weight=self.adapted_model_para["conv2.weight"], bias=self.adapted_model_para["conv2.bias"])))
+        x = x.view(-1, 2 * self.n_kernels * 5 * 5)
+        x = F.relu(F.linear(
+            x, weight=self.adapted_model_para["fc1.weight"], bias=self.adapted_model_para["fc1.bias"]))
+        x = F.relu(F.linear(
+            x, weight=self.adapted_model_para["fc2.weight"], bias=self.adapted_model_para["fc2.bias"]))
+        x = F.relu(F.linear(
+            x, weight=self.adapted_model_para["output.weight"], bias=self.adapted_model_para["output.bias"]))
         return x

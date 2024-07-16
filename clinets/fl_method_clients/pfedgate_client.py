@@ -4,6 +4,7 @@ from clinets.client import Client
 from models.pfedgate.gating_layers import GatingLayer
 from models.pfedgate.knapsack_solver import KnapsackSolver01
 
+
 class PFedGateClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
@@ -55,8 +56,9 @@ class PFedGateClient(Client):
         if self.gating_layer.fine_grained_block_split == 1:
             for para_idx, para in enumerate(self.model.parameters()):
                 mask = torch.ones_like(para, device=self.device).reshape(-1) * top_trans_weights[para_idx]
+                para_name = self.gating_layer.block_names[para_idx]
                 mask = mask.view(para.shape)
-                para.data = para * torch.where(mask > 0, 1, 0)
+                self.model.set_adapted_para(para_name, mask * para)
         else:
             for para_name, para in self.model.named_parameters():
                 mask = torch.ones_like(para, device=self.device).reshape(-1)
@@ -68,7 +70,7 @@ class PFedGateClient(Client):
                     block_element_end = (i + 1 - sub_block_begin) * size_each_sub
                     mask[block_element_begin:block_element_end] *= gating_weight_sub_block_i
                 mask = mask.view(para.shape)
-                para.data = para * torch.where(mask > 0, 1, 0)
+                self.model.set_adapted_para(para_name, mask * para)
         return top_trans_weights.detach()
 
     def _select_top_sub_blocks(self, importance_value_list, block_idx, mask):
@@ -153,7 +155,7 @@ class PFedGateClient(Client):
         # # mask the meta-model according to sparsity preference
         _ = self._adapt_prune_model(top_trans_weights)
 
-        y_pred = self.model(x)
+        y_pred = self.model.adapted_forward(x)
         loss_vec = self.criterion(y_pred, y)
         loss_meta_model = loss_vec.mean()
 
@@ -166,11 +168,13 @@ class PFedGateClient(Client):
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
         optimizer.step()
 
+        self.model.del_adapted_para()
+
     def train(self):
         self.model.train()
         self.gating_layer.train()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        optimizer_gating_layer = torch.optim.Adam(self.gating_layer.parameters(), lr=self.lr)
+        optimizer_gating_layer = torch.optim.Adam(self.gating_layer.parameters(), lr=0.1)
         initial_model_params = {name: param.clone() for name, param in self.model.named_parameters()}
 
         for epoch in range(self.epochs):

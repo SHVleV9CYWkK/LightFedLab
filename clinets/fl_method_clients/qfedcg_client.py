@@ -1,6 +1,6 @@
 import torch
 from torch.quantization import QuantStub, DeQuantStub, QConfig, default_observer
-from clinets.fedcg_client import FedCGClient
+from clinets.fl_method_clients.fedcg_client import FedCGClient
 
 
 class QFedCGClient(FedCGClient):

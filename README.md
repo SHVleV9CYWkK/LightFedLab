@@ -46,8 +46,9 @@ python main.py --fl_method fedavg --dataset_name mnist --model cnn --lr 1e-4 --s
 - `--server_lr`: Server-side learning rate.
 - `--batch_size`: Batch size for training.
 - `--n_rounds`: Number of federated rounds to execute.
+- `--enable_scheduler`: Whether to start the learning rate scheduler, which is enabled by default
 - `--seed`: Seed for random number generation.
-- `--device`: Device to run the training on (`cpu`, `gpu`, `mps`).
+- `--device`: Device to run the training on (`cpu`, `cuda`, `mps`).
 - `--split_method`: Method used to split the dataset (`dirichlet`).
 - `--is_send_gradients`: Whether to send gradients back to server.
 
@@ -72,3 +73,11 @@ We welcome contributions to improve the framework! Please submit pull requests o
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+
+## Acknowledgements and References
+
+This framework contains the core algorithm original code of the **pFedGate**. The original pFedGate algorithm can be found here:
+
+- [pFedGate GitHub Repository](https://github.com/yxdyc/pFedGate)
+
+We extend our gratitude to the authors for their contributions to the field of federated learning, which have significantly supported our work.
