@@ -1,10 +1,12 @@
 import os
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from torchvision import transforms
 from torchvision.models import vgg16, resnet18, alexnet, resnet50
 from torch import nn
+import torch.optim as optim
 
 from models.cnn_model import CNNModel, LeafCNN1, LeNet
 
@@ -116,3 +118,46 @@ def plot_training_results(base_path, result_path=None, metrics=None):
         # 保存图像
         plt.savefig(os.path.join(result_path, f'{metric}.png'))
         plt.close()
+
+
+def get_lr_scheduler(optimizer, scheduler_name, n_rounds=None, gated_learner=False):
+    """
+    Gets torch.optim.lr_scheduler given an lr_scheduler name and an optimizer
+
+    :param optimizer:
+    :type optimizer: torch.optim.Optimizer
+    :param scheduler_name: possible are
+    :type scheduler_name: str
+    :param n_rounds: number of training rounds, only used if `scheduler_name == multi_step`
+    :type n_rounds: int
+    :return: torch.optim.lr_scheduler
+
+    """
+
+    if scheduler_name == "sqrt":
+        return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda x: 1 / np.sqrt(x) if x > 0 else 1)
+
+    elif scheduler_name == "linear":
+        return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda x: 1 / x if x > 0 else 1)
+
+    elif scheduler_name == "constant":
+        return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda x: 1)
+
+    elif scheduler_name == "cosine_annealing":
+        return optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, eta_min=0)
+
+    elif scheduler_name == "multi_step":
+        assert n_rounds is not None, "Number of rounds is needed for \"multi_step\" scheduler!"
+        if gated_learner:
+            # milestones = [n_rounds//2, 11*(n_rounds//12)]
+            milestones = [3 * (n_rounds // 4)]
+        else:
+            milestones = [n_rounds//2, 3*(n_rounds//4)]
+        return optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=0.1)
+    elif "reduce_on_plateau" in scheduler_name:
+        last_word = scheduler_name.split("_")[-1]
+        patience = int(last_word) if last_word.isdigit() else 10
+        return optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", patience=patience, factor=0.75)
+
+    else:
+        raise NotImplementedError("Other learning rate schedulers are not implemented")

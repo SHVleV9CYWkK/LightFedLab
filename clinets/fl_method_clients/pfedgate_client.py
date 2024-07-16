@@ -3,6 +3,7 @@ import torch
 from clinets.client import Client
 from models.pfedgate.gating_layers import GatingLayer
 from models.pfedgate.knapsack_solver import KnapsackSolver01
+from utils.utils import get_lr_scheduler
 
 
 class PFedGateClient(Client):
@@ -16,6 +17,7 @@ class PFedGateClient(Client):
         self.knapsack_solver = None
         self.sparse_factor = kwargs.get('sparse_factor', 0.5)
         self.gated_scores_scale_factor = 10
+        self.optimizer = self.opt_for_gating = self.lr_scheduler_for_gating = None
 
     def init_gating_layer(self):
         self.gating_layer = GatingLayer(self.model, self.device, self.input_feat_size, self.num_channels)
@@ -26,6 +28,9 @@ class PFedGateClient(Client):
             item_num_max=len(self.gating_layer.block_size_lookup_table),
             weight_max=round(self.sparse_factor * self.total_model_size.item())
         )
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        self.opt_for_gating = torch.optim.Adam(self.gating_layer.parameters(), lr=0.1)
+        self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, 'reduce_on_plateau')
 
     def _get_top_gated_scores(self, x):
         """ Get gating weights via the learned gating layer data-dependently """
@@ -140,15 +145,17 @@ class PFedGateClient(Client):
 
         return sum(selected_items_weight).detach()
 
-    def fit_batch(self, x, y, optimizer, opt_for_gating):
+    def fit_batch(self, x, y):
         """
 
         """
-        opt_for_gating.zero_grad()
-        optimizer.zero_grad()
+        self.opt_for_gating.zero_grad()
+        self.optimizer.zero_grad()
 
         x = x.to(self.device).type(torch.float32)
         y = y.to(self.device)
+
+        x = self.gating_layer.norm_input_layer(x)
 
         # get personalized masks via gating layer
         _, top_trans_weights, _ = self._get_top_gated_scores(x)
@@ -163,24 +170,24 @@ class PFedGateClient(Client):
 
         loss_gating_layer.backward()
         torch.nn.utils.clip_grad_norm_(self.gating_layer.parameters(), max_norm=10, norm_type=2)
-        opt_for_gating.step()
+        self.opt_for_gating.step()
+
+        self.lr_scheduler_for_gating.step(loss_meta_model)
 
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
-        optimizer.step()
+        self.optimizer.step()
 
         self.model.del_adapted_para()
 
     def train(self):
         self.model.train()
         self.gating_layer.train()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        optimizer_gating_layer = torch.optim.Adam(self.gating_layer.parameters(), lr=0.1)
         initial_model_params = {name: param.clone() for name, param in self.model.named_parameters()}
 
         for epoch in range(self.epochs):
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
-                self.fit_batch(x, labels, optimizer, optimizer_gating_layer)
+                self.fit_batch(x, labels)
 
         total_model_gradients = {}
         for name, param in self.model.named_parameters():

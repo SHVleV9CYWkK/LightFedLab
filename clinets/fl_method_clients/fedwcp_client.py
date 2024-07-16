@@ -8,7 +8,6 @@ class FedWCPClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
-        self.support_sparse = kwargs.get('sparse_compute', None)
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 
     def receive_model(self, global_model):
@@ -18,10 +17,6 @@ class FedWCPClient(Client):
         self.model = deepcopy(model).to(device=self.device)
         self.preclustered_model_state_dict = self.model.state_dict()
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
-        if self.support_sparse is not None:
-            self.support_sparse = next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu
-        if self.support_sparse:
-            print("Warning: Sparse matrices belong to the prototype stage")
 
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
@@ -37,13 +32,7 @@ class FedWCPClient(Client):
                 is_zero_centroid = (kmeans.centroids == 0).view(-1)
                 mask = is_zero_centroid[kmeans.labels_].view(original_shape) == 0
                 mask_dict[key] = mask.bool()
-                if self.support_sparse:
-                    indices = mask.nonzero(as_tuple=False).t()
-                    values = new_weights[mask]
-                    sparse_tensor = torch.sparse_coo_tensor(indices, values, original_shape)
-                    clustered_state_dict[key] = sparse_tensor
-                else:
-                    clustered_state_dict[key] = new_weights
+                clustered_state_dict[key] = new_weights
             else:
                 clustered_state_dict[key] = weight
                 mask_dict[key] = torch.ones_like(weight, dtype=torch.bool)
@@ -68,15 +57,8 @@ class FedWCPClient(Client):
         pruned_state_dict = {}
         for key, weight in self.model.state_dict().items():
             if key in mask_dict:
-                if self.support_sparse:
-                    mask = mask_dict[key]
-                    indices = mask.nonzero(as_tuple=False).t()
-                    values = weight[mask]
-                    sparse_tensor = torch.sparse_coo_tensor(indices, values, weight.size())
-                    pruned_state_dict[key] = sparse_tensor
-                else:
-                    pruned_weight = weight * mask_dict[key]
-                    pruned_state_dict[key] = pruned_weight
+                pruned_weight = weight * mask_dict[key]
+                pruned_state_dict[key] = pruned_weight
             else:
                 pruned_state_dict[key] = weight
         return pruned_state_dict
