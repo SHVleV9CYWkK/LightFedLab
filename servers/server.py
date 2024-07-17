@@ -27,6 +27,7 @@ class Server(ABC):
     def _distribute_model(self):
         for client in self.clients if self.is_all_clients else self.selected_clients:
             client.receive_model(self.model)
+            client.init_optimizer()
 
     def _evaluate_model(self):
         result_list = []
@@ -125,7 +126,7 @@ class Server(ABC):
         average_eval_results = self._evaluate_model()
         return average_eval_results
 
-    def lr_scheduler(self, lr):
-        for client in self.clients:
-            client.lr = lr
+    def lr_scheduler(self, metric, rounds):
+        for client in self.selected_clients:
+            client.update_lr(metric, rounds)
 

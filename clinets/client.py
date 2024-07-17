@@ -4,7 +4,7 @@ import torch
 import torcheval.metrics.functional as metrics
 from torch.utils.data import DataLoader, Subset
 from copy import deepcopy
-from utils.utils import get_optimizer
+from utils.utils import get_optimizer, get_lr_scheduler
 
 
 class Client(ABC):
@@ -26,6 +26,8 @@ class Client(ABC):
         client_val_dataset = Subset(full_dataset, indices=val_indices)
         self.client_train_loader = DataLoader(client_train_dataset, batch_size=bz, shuffle=True, drop_last=True)
         self.client_val_loader = DataLoader(client_val_dataset, batch_size=bz, shuffle=True, drop_last=True)
+        self.global_metric = self.global_epoch = 0
+        self.lr_scheduler = None
 
     @abstractmethod
     def train(self):
@@ -33,7 +35,13 @@ class Client(ABC):
 
     def receive_model(self, global_model):
         self.model = deepcopy(global_model).to(device=self.device)
+
+    def init_optimizer(self):
         self.optimizer = get_optimizer(self.optimizer_name, self.model, self.lr)
+        self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
+
+    def update_lr(self, global_metric, global_rounds):
+        self.lr_scheduler.step(global_metric, epoch=global_rounds)
 
     def evaluate_local_model(self):
         self.model.eval()

@@ -28,8 +28,6 @@ def save_log(eval_results, save_log_dir, dataset_name, fl_type):
 
 
 def execute_fed_process(server, args):
-    if args.enable_scheduler:
-        lr_scheduler = LossBasedLRScheduler(initial_lr=args.lr, factor=0.5, patience=3, min_lr=1e-6)
     for r in range(args.n_rounds):
         print(f"------------\nRound {r}")
         start_time = time.time()
@@ -40,8 +38,7 @@ def execute_fed_process(server, args):
         print(f"Training time: {(end_time - start_time):.2f}. Evaluation Results: {eval_results_str}")
         save_log(eval_results, args.log_dir, args.dataset_name, args.fl_method)
         if args.enable_scheduler:
-            lr_scheduler.step(eval_results['loss'])
-            server.lr_scheduler(lr_scheduler.get_lr())
+            server.lr_scheduler(eval_results['accuracy'], r)
 
 
 def execute_experiment(args, device):

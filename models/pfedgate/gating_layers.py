@@ -155,7 +155,7 @@ class GatingLayer(nn.Module):
         self.block_size_lookup_table_normalized[self.non_linear_layer_block_idx] = block_size_lookup_table_non_linear
 
         # ---------------------------- Build gating layer ----------------------------
-        if dataset_name is "shakespeare":
+        if dataset_name == "shakespeare":
             norm_input_layer = switchable_norm.SwitchNorm1d(IN_PLANES_TYPE[dataset_name])
             input_feat_size = SHAKESPEARE_CONFIG["embed_size"]
         else:

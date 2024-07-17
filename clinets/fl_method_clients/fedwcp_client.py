@@ -2,6 +2,7 @@ from copy import deepcopy
 import torch
 from clinets.client import Client
 from utils.kmeans import TorchKMeans
+from utils.utils import get_optimizer
 
 
 class FedWCPClient(Client):
@@ -13,10 +14,14 @@ class FedWCPClient(Client):
     def receive_model(self, global_model):
         self.global_model = deepcopy(global_model).to(device=self.device)
 
+    def init_optimizer(self):
+        return
+
     def init_local_model(self, model):
         self.model = deepcopy(model).to(device=self.device)
         self.preclustered_model_state_dict = self.model.state_dict()
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
+        self.optimizer = get_optimizer(self.optimizer_name, self.model, self.lr)
 
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
@@ -95,6 +100,7 @@ class FedWCPClient(Client):
                             param.grad += regularization_terms[name]
 
                 self.optimizer.step()
+
                 pruned_model_state_dict = self._prune_model_weights(self.mask)
                 self.model.load_state_dict(pruned_model_state_dict)
 

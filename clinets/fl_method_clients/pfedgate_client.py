@@ -21,8 +21,6 @@ class PFedGateClient(Client):
         self.gated_scores_scale_factor = 10
         self.opt_for_gating = None
         self.lr_scheduler_for_gating = self.lr_scheduler = None
-        self.global_metric = 0
-        self.global_epoch = 0
 
     def init_gating_layer(self):
         self.gating_layer = GatingLayer(self.model, self.device, self.dataset_name, 5, 0)
@@ -177,6 +175,10 @@ class PFedGateClient(Client):
 
         return loss_meta_model
 
+    def update_lr(self, global_metric, global_rounds):
+        self.lr_scheduler.step(global_metric, epoch=global_rounds)
+        self.lr_scheduler_for_gating(global_metric, epoch=global_rounds)
+
     def train(self):
         self.model.train()
         self.gating_layer.train()
@@ -184,10 +186,6 @@ class PFedGateClient(Client):
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
                 _ = self.fit_batch(x, labels)
-
-        self.global_epoch += 1
-        self.lr_scheduler_for_gating.step(self.global_metric, epoch=self.global_epoch)
-        self.lr_scheduler.step(self.global_metric, epoch=self.global_epoch)
 
         return self.model.state_dict()
 
