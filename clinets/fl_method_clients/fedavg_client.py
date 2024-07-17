@@ -25,7 +25,6 @@ class FedAvgClient(Client):
                 total_loss += loss.item()
                 loss.backward()
                 self.optimizer.step()
-            print(f'Client {self.id} loss: {total_loss / len(self.client_train_loader)}')
 
         if not self.is_send_gradients:
             return self.model.state_dict()

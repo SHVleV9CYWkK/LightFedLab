@@ -92,9 +92,9 @@ class FedWCPClient(Client):
 
                 # 动量退火策略
                 if loss.item() < exponential_average_loss:
-                    decay_factor = min(base_decay_rate ** (idx + 1), 0.99)
+                    decay_factor = min(base_decay_rate ** (idx + 1) * 1.1, 0.99)
                 else:
-                    decay_factor = max(base_decay_rate ** (idx + 1) * 1.1, 0.1)
+                    decay_factor = max(base_decay_rate ** (idx + 1) / 1.1, 0.1)
 
                 for name, param in self.model.named_parameters():
                     if name in ref_momentum:

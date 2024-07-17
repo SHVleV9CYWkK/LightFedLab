@@ -177,7 +177,7 @@ class PFedGateClient(Client):
 
     def update_lr(self, global_metric):
         self.lr_scheduler.step(global_metric)
-        self.lr_scheduler_for_gating(global_metric)
+        self.lr_scheduler_for_gating.step(global_metric)
 
     def train(self):
         self.model.train()
