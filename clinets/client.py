@@ -42,7 +42,8 @@ class Client(ABC):
                 x, labels = x.to(self.device), labels.to(self.device)
                 outputs = self.model(x).to(self.device)
                 loss = self.criterion(outputs, labels)
-                total_loss += loss.item() * x.size(0)
+                loss_meta_model = loss.mean()
+                total_loss += loss_meta_model
                 _, predicted = torch.max(outputs.data, 1)
                 all_labels.append(labels)
                 all_predictions.append(predicted)
@@ -50,7 +51,7 @@ class Client(ABC):
         all_labels = torch.cat(all_labels)
         all_predictions = torch.cat(all_predictions)
 
-        avg_loss = total_loss / self.val_dataset_len
+        avg_loss = total_loss / len(self.client_val_loader)
         accuracy = metrics.multiclass_accuracy(all_predictions, all_labels, num_classes=self.num_classes)
         # precision = metrics.multiclass_precision(all_predictions, all_labels, num_classes=self.num_classes)
         # recall = metrics.multiclass_recall(all_predictions, all_labels, num_classes=self.num_classes)

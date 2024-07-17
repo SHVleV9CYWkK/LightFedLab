@@ -58,7 +58,8 @@ class FedCGClient(Client):
                 x, labels = x.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(x)
-                loss = self.criterion(outputs, labels)
+                loss_vec = self.criterion(outputs, labels)
+                loss = loss_vec.mean()
                 loss.backward()
                 for name, param in self.model.named_parameters():
                     if param.grad is not None:

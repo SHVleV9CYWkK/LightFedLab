@@ -11,6 +11,7 @@ class PFedGateClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
         data_sample, _ = full_dataset[0]
+        self.dataset_name = full_dataset.__class__.__name__.lower()
         self.input_feat_size = data_sample.numel()
         self.num_channels = data_sample.size(0)
         self.gating_layer = None
@@ -18,11 +19,13 @@ class PFedGateClient(Client):
         self.knapsack_solver = None
         self.sparse_factor = kwargs.get('sparse_factor', 0.5)
         self.gated_scores_scale_factor = 10
-        # self.optimizer = self.opt_for_gating = None
-        # self.lr_scheduler_for_gating = self.lr_scheduler = None
+        self.optimizer = self.opt_for_gating = None
+        self.lr_scheduler_for_gating = self.lr_scheduler = None
+        self.global_metric = 0
+        self.global_epoch = 0
 
     def init_gating_layer(self):
-        self.gating_layer = GatingLayer(self.model, self.device, self.input_feat_size, self.num_channels)
+        self.gating_layer = GatingLayer(self.model, self.device, self.dataset_name, 5, 0)
         self.total_model_size = torch.sum(self.gating_layer.block_size_lookup_table)
         self.min_sparse_factor = min(max(1 / self.gating_layer.fine_grained_block_split, 0.1), self.sparse_factor)
         self.knapsack_solver = KnapsackSolver01(
@@ -30,10 +33,10 @@ class PFedGateClient(Client):
             item_num_max=len(self.gating_layer.block_size_lookup_table),
             weight_max=round(self.sparse_factor * self.total_model_size.item())
         )
-        # self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
-        # self.opt_for_gating = torch.optim.SGD(self.gating_layer.parameters(), lr=0.1)
-        # self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, 'reduce_on_plateau')
-        # self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4)
+        self.opt_for_gating = torch.optim.SGD(self.gating_layer.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4)
+        self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, 'reduce_on_plateau')
+        self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
 
     def _get_top_gated_scores(self, x):
         """ Get gating weights via the learned gating layer data-dependently """
@@ -152,12 +155,11 @@ class PFedGateClient(Client):
         """
 
         """
-        # self.opt_for_gating.zero_grad()
-        # self.optimizer.zero_grad()
+        self.opt_for_gating.zero_grad()
+        self.optimizer.zero_grad()
 
         x = x.to(self.device).type(torch.float32)
         y = y.to(self.device)
-
 
         # get personalized masks via gating layer
         _, top_trans_weights, _ = self._get_top_gated_scores(x)
@@ -165,33 +167,30 @@ class PFedGateClient(Client):
         _ = self._adapt_prune_model(top_trans_weights)
 
         y_pred = self.model.adapted_forward(x)
-        # y_pred = self.model(x)
         loss_vec = self.criterion(y_pred, y)
-
-        loss_vec.backward()
+        loss_meta_model = loss_vec.mean()
+        loss_meta_model.backward()
         # torch.nn.utils.clip_grad_norm_(self.gating_layer.parameters(), max_norm=10, norm_type=2)
-        # self.opt_for_gating.step()
+        self.opt_for_gating.step()
 
         # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
-        # self.optimizer.step()
+        self.optimizer.step()
+
+        self.model.del_adapted_para()
+
+        return loss_meta_model
 
     def train(self):
         self.model.train()
         self.gating_layer.train()
-
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        opt_for_gating = torch.optim.SGD(self.gating_layer.parameters(), lr=self.lr)
-
         for epoch in range(self.epochs):
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
-                opt_for_gating.zero_grad()
-                self.fit_batch(x, labels)
-                opt_for_gating.step()
-                optimizer.step()
+                _ = self.fit_batch(x, labels)
 
-                self.model.del_adapted_para()
+        self.global_epoch += 1
+        self.lr_scheduler_for_gating.step(self.global_metric, epoch=self.global_epoch)
+        self.lr_scheduler.step(self.global_metric, epoch=self.global_epoch)
 
         return self.model.state_dict()
 
@@ -205,12 +204,12 @@ class PFedGateClient(Client):
         with torch.no_grad():
             for x, labels in self.client_val_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
-                # _, top_trans_weights, _ = self._get_top_gated_scores(x)
-                # _ = self._adapt_prune_model(top_trans_weights)
-                # outputs = self.model.adapted_forward(x).to(self.device)
-                outputs = self.model(x)
-                loss = self.criterion(outputs, labels)
-                total_loss += loss.item() * x.size(0)
+                _, top_trans_weights, _ = self._get_top_gated_scores(x)
+                _ = self._adapt_prune_model(top_trans_weights)
+                outputs = self.model.adapted_forward(x)
+                loss_vec = self.criterion(outputs, labels)
+                loss_meta_model = loss_vec.mean()
+                total_loss += loss_meta_model
                 _, predicted = torch.max(outputs.data, 1)
                 all_labels.append(labels)
                 all_predictions.append(predicted)
@@ -218,7 +217,7 @@ class PFedGateClient(Client):
         all_labels = torch.cat(all_labels)
         all_predictions = torch.cat(all_predictions)
 
-        avg_loss = total_loss / self.val_dataset_len
+        avg_loss = total_loss / len(self.client_val_loader)
         accuracy = metrics.multiclass_accuracy(all_predictions, all_labels, num_classes=self.num_classes)
         # precision = metrics.multiclass_precision(all_predictions, all_labels, num_classes=self.num_classes)
         # recall = metrics.multiclass_recall(all_predictions, all_labels, num_classes=self.num_classes)

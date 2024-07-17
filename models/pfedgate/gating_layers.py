@@ -5,11 +5,29 @@ Source: pFedGate Project, available at https://github.com/yxdyc/pFedGate/blob/ma
 The GatingLayer and Reshape classes used in this project are based on the official implementation
 from the research paper "Efficient Personalized Federated Learning via Sparse Model-Adaptation".
 """
+import string
 from copy import deepcopy
 
 import torch
 from torch import nn as nn
 from models.pfedgate import switchable_norm
+
+IN_PLANES_TYPE = {
+    "cifar10": 3,
+    "cifar100": 3,
+    "emnist": 1,
+    "femnist": 1,
+    "shakespeare": len(string.printable),
+}
+
+SHAKESPEARE_CONFIG = {
+    "input_size": len(string.printable),
+    "embed_size": 8,
+    "hidden_size": 256,
+    "output_size": len(string.printable),
+    "n_layers": 2,
+    "chunk_len": 80
+}
 
 
 def map_module_name(name):
@@ -54,9 +72,11 @@ class GatingLayer(nn.Module):
     of the GatingLayer without altering the core functionality as described in the original paper.
     """
 
-    def __init__(self, model_to_mask, device, input_feat_size, num_channels, fine_grained_block_split=5,
-                 seperate_trans=0):
+    def __init__(self, model_to_mask, device, dataset_name, fine_grained_block_split=1, seperate_trans=0):
         super().__init__()
+        assert dataset_name in ["shakespeare", "emnist", "femnist", "cifar10", "cifar100"], \
+            f"Un-supported dataset name: {dataset_name}"
+
         # ----------------------------  Split Blocks into linear and non-linear parts  ----------------------------
         # model-block size, used for structured masking
         ori_block_names = [p[0] for p in model_to_mask.named_parameters()]
@@ -135,7 +155,12 @@ class GatingLayer(nn.Module):
         self.block_size_lookup_table_normalized[self.non_linear_layer_block_idx] = block_size_lookup_table_non_linear
 
         # ---------------------------- Build gating layer ----------------------------
-        norm_input_layer = switchable_norm.SwitchNorm2d(num_channels)
+        if dataset_name is "shakespeare":
+            norm_input_layer = switchable_norm.SwitchNorm1d(IN_PLANES_TYPE[dataset_name])
+            input_feat_size = SHAKESPEARE_CONFIG["embed_size"]
+        else:
+            norm_input_layer = switchable_norm.SwitchNorm2d(IN_PLANES_TYPE[dataset_name])
+            input_feat_size = 1 * 28 * 28 if dataset_name in ["emnist", "femnist"] else 3 * 32 * 32
         reshape_layer = Reshape(reshape_type="flat_dim0")
         output_layer = nn.Linear(in_features=input_feat_size, out_features=len(self.block_names))
         norm_outputs = torch.nn.BatchNorm1d(num_features=len(self.block_names))
