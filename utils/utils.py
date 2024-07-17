@@ -120,6 +120,32 @@ def plot_training_results(base_path, result_path=None, metrics=None):
         plt.close()
 
 
+def get_optimizer(optimizer_name, model, lr):
+    if optimizer_name == "adam":
+        return optim.Adam(
+            [param for param in model.parameters() if param.requires_grad],
+            lr=lr,
+            weight_decay=5e-4
+        )
+
+    elif optimizer_name == "sgd":
+        return optim.SGD(
+            [param for param in model.parameters() if param.requires_grad],
+            lr=lr,
+            momentum=0.9,
+            weight_decay=5e-4
+        )
+
+    elif optimizer_name == "adamw":
+        return optim.AdamW(
+            [param for param in model.parameters() if param.requires_grad],
+            lr=lr,
+            weight_decay=5e-4
+        )
+    else:
+        raise NotImplementedError("Other optimizer are not implemented")
+
+
 def get_lr_scheduler(optimizer, scheduler_name, n_rounds=None, gated_learner=False):
     """
     Gets torch.optim.lr_scheduler given an lr_scheduler name and an optimizer
@@ -152,7 +178,7 @@ def get_lr_scheduler(optimizer, scheduler_name, n_rounds=None, gated_learner=Fal
             # milestones = [n_rounds//2, 11*(n_rounds//12)]
             milestones = [3 * (n_rounds // 4)]
         else:
-            milestones = [n_rounds//2, 3*(n_rounds//4)]
+            milestones = [n_rounds // 2, 3 * (n_rounds // 4)]
         return optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=0.1)
     elif "reduce_on_plateau" in scheduler_name:
         last_word = scheduler_name.split("_")[-1]

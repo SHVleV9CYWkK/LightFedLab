@@ -5,8 +5,8 @@ from utils.kmeans import TorchKMeans
 
 
 class FedWCPClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
+    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 
@@ -64,7 +64,6 @@ class FedWCPClient(Client):
         return pruned_state_dict
 
     def train(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         ref_momentum = self._compute_global_local_model_difference()
         regularization_terms = self._compute_sparse_refined_regularization(self.mask)
         self.model.load_state_dict(self.new_clustered_model_state_dict)
@@ -75,7 +74,7 @@ class FedWCPClient(Client):
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
                 x, labels = x.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 outputs = self.model(x)
                 loss_vec = self.criterion(outputs, labels)
                 loss = loss_vec.mean()
@@ -95,7 +94,7 @@ class FedWCPClient(Client):
                         if 'weight' in name:
                             param.grad += regularization_terms[name]
 
-                optimizer.step()
+                self.optimizer.step()
                 pruned_model_state_dict = self._prune_model_weights(self.mask)
                 self.model.load_state_dict(pruned_model_state_dict)
 

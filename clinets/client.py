@@ -4,13 +4,16 @@ import torch
 import torcheval.metrics.functional as metrics
 from torch.utils.data import DataLoader, Subset
 from copy import deepcopy
+from utils.utils import get_optimizer
 
 
 class Client(ABC):
-    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device):
+    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device):
         self.id = client_id
         self.model = None
         self.criterion = criterion
+        self.optimizer_name = optimizer_name
+        self.optimizer = None
         self.lr = lr
         self.epochs = epochs
         self.device = device
@@ -30,6 +33,7 @@ class Client(ABC):
 
     def receive_model(self, global_model):
         self.model = deepcopy(global_model).to(device=self.device)
+        self.optimizer = get_optimizer(self.optimizer_name, self.model.parameters(), self.lr)
 
     def evaluate_local_model(self):
         self.model.eval()

@@ -3,13 +3,12 @@ from clinets.client import Client
 
 
 class FedAvgClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
+    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
         self.is_send_gradients = kwargs.get('is_send_gradients', False)
 
     def train(self):
         self.model.train()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         initial_params = None
         if self.is_send_gradients:
@@ -19,12 +18,12 @@ class FedAvgClient(Client):
         for epoch in range(self.epochs):
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 outputs = self.model(x)
                 loss_vec = self.criterion(outputs, labels)
                 loss = loss_vec.mean()
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
 
         if not self.is_send_gradients:
             return self.model.state_dict()

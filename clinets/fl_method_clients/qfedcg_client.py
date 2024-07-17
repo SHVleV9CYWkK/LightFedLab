@@ -4,8 +4,8 @@ from clinets.fl_method_clients.fedcg_client import FedCGClient
 
 
 class QFedCGClient(FedCGClient):
-    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs)
+    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs)
         self.quantization_levels = kwargs.get('quantization_levels', 8)
         self.last_gradient = None
 

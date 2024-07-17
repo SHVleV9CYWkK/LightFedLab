@@ -42,6 +42,7 @@ python main.py --fl_method fedavg --dataset_name mnist --model cnn --lr 1e-4 --s
 - `--fl_method`: The federated learning method to use (e.g., `fedavg`).
 - `--dataset_name`: Name of the dataset (e.g., `mnist`).
 - `--model`: Model to train (e.g., `cnn`).
+- `--optimizer_name` Select the optimizer you want to use (e.g., `sgd`).
 - `--lr`: Learning rate for the client model.
 - `--server_lr`: Server-side learning rate.
 - `--batch_size`: Batch size for training.

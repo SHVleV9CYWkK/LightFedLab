@@ -3,8 +3,8 @@ from clinets.client import Client
 
 
 class FedCGClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
+    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
         self.compression_ratio = kwargs.get('compression_ratio', 0.5)
         self.gradient_residuals = None
 
@@ -49,14 +49,13 @@ class FedCGClient(Client):
 
     def train(self):
         self.model.train()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         initial_params = {name: param.clone() for name, param in self.model.named_parameters()}
         if self.gradient_residuals is None:
             self.gradient_residuals = {name: torch.zeros_like(param) for name, param in self.model.named_parameters()}
         for epoch in range(self.epochs):
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 outputs = self.model(x)
                 loss_vec = self.criterion(outputs, labels)
                 loss = loss_vec.mean()
@@ -64,7 +63,7 @@ class FedCGClient(Client):
                 for name, param in self.model.named_parameters():
                     if param.grad is not None:
                         param.grad += self.gradient_residuals[name]
-                optimizer.step()
+                self.optimizer.step()
 
         param_changes = {name: initial_params[name] - param.data for name, param in self.model.named_parameters()}
         return self.compress_gradients(param_changes)

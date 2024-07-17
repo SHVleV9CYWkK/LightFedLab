@@ -4,12 +4,12 @@ import torcheval.metrics.functional as metrics
 from clinets.client import Client
 from models.pfedgate.gating_layers import GatingLayer
 from models.pfedgate.knapsack_solver import KnapsackSolver01
-from utils.utils import get_lr_scheduler
+from utils.utils import get_lr_scheduler, get_optimizer
 
 
 class PFedGateClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, bz, lr, epochs, criterion, device)
+    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
         data_sample, _ = full_dataset[0]
         self.dataset_name = full_dataset.__class__.__name__.lower()
         self.input_feat_size = data_sample.numel()
@@ -19,7 +19,7 @@ class PFedGateClient(Client):
         self.knapsack_solver = None
         self.sparse_factor = kwargs.get('sparse_factor', 0.5)
         self.gated_scores_scale_factor = 10
-        self.optimizer = self.opt_for_gating = None
+        self.opt_for_gating = None
         self.lr_scheduler_for_gating = self.lr_scheduler = None
         self.global_metric = 0
         self.global_epoch = 0
@@ -33,8 +33,7 @@ class PFedGateClient(Client):
             item_num_max=len(self.gating_layer.block_size_lookup_table),
             weight_max=round(self.sparse_factor * self.total_model_size.item())
         )
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4)
-        self.opt_for_gating = torch.optim.SGD(self.gating_layer.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4)
+        self.opt_for_gating = get_optimizer(self.optimizer_name, self.gating_layer.parameters(), lr=self.lr)
         self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, 'reduce_on_plateau')
         self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
 
@@ -170,10 +169,8 @@ class PFedGateClient(Client):
         loss_vec = self.criterion(y_pred, y)
         loss_meta_model = loss_vec.mean()
         loss_meta_model.backward()
-        # torch.nn.utils.clip_grad_norm_(self.gating_layer.parameters(), max_norm=10, norm_type=2)
-        self.opt_for_gating.step()
 
-        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
+        self.opt_for_gating.step()
         self.optimizer.step()
 
         self.model.del_adapted_para()

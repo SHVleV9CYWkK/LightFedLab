@@ -25,6 +25,7 @@ class ClientFactory:
             clients.append(client_prototype(idx,
                                             dataset_index[idx],
                                             full_dataset,
+                                            args.optimizer_name,
                                             args.batch_size,
                                             args.lr,
                                             args.local_epochs,
