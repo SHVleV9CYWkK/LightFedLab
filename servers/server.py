@@ -19,15 +19,20 @@ class Server(ABC):
         self.model = model
         self.datasets_len = [client.train_dataset_len for client in self.clients]
         self._distribute_model()
+        self._init_clients()
 
     @abstractmethod
     def _average_aggregate(self, weights_list):
         pass
 
     def _distribute_model(self):
-        for client in self.clients if self.is_all_clients else self.selected_clients:
+        for client in self.clients:
             client.receive_model(self.model)
-            client.init_optimizer()
+
+    def _init_clients(self):
+        print("Initializing clients...")
+        for client in self.clients:
+            client.init_client()
 
     def _evaluate_model(self):
         result_list = []
@@ -54,10 +59,10 @@ class Server(ABC):
     def _weight_aggregation(self, weights_list):
         datasets_len = self.datasets_len if self.is_all_clients else [client.dataset_len for client in
                                                                       self.selected_clients]
+        total_len = sum(datasets_len)
         average_weights = {}
         for key in weights_list[0].keys():
             weighted_sum = sum(weights[key] * len_ for weights, len_ in zip(weights_list, datasets_len))
-            total_len = sum(datasets_len)
             average_weights[key] = weighted_sum / total_len
 
         self.model.load_state_dict(average_weights)
@@ -114,7 +119,7 @@ class Server(ABC):
             pbar.update(1)
         pbar.clear()
         pbar.close()
-        print("Aggregating models")
+        print("Aggregating models...")
         start_time = time.time()
         self._average_aggregate(local_weights)
         end_time = time.time()
@@ -122,11 +127,11 @@ class Server(ABC):
         self._distribute_model()
 
     def evaluate(self):
-        print("Evaluating model")
+        print("Evaluating model...")
         average_eval_results = self._evaluate_model()
         return average_eval_results
 
-    def lr_scheduler(self, metric, rounds):
+    def lr_scheduler(self, metric):
         for client in self.selected_clients:
-            client.update_lr(metric, rounds)
+            client.update_lr(metric)
 

@@ -54,7 +54,7 @@ def parse_args():
                         help='dataset name')
     parser.add_argument('--model', type=str, default='alexnet', choices=['vgg16', 'resnet18', 'cnn', 'resnet50', 'alexnet', 'leafcnn1', 'lenet'],
                         help='model name')
-    parser.add_argument('--optimizer_name', type=str, default='sgd', choices=['sgd', 'admm', 'admmw'],
+    parser.add_argument('--optimizer_name', type=str, default='sgd', choices=['sgd', 'adam', 'adamw'],
                         help='The name of the optimizer used')
     parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of the local client during training')
     parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')

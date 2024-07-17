@@ -24,8 +24,8 @@ class Client(ABC):
         self.num_classes = len(full_dataset.classes)
         client_train_dataset = Subset(full_dataset, indices=train_indices)
         client_val_dataset = Subset(full_dataset, indices=val_indices)
-        self.client_train_loader = DataLoader(client_train_dataset, batch_size=bz, shuffle=True, drop_last=True)
-        self.client_val_loader = DataLoader(client_val_dataset, batch_size=bz, shuffle=True, drop_last=True)
+        self.client_train_loader = DataLoader(client_train_dataset, batch_size=bz, shuffle=False, drop_last=True)
+        self.client_val_loader = DataLoader(client_val_dataset, batch_size=bz, shuffle=False, drop_last=True)
         self.global_metric = self.global_epoch = 0
         self.lr_scheduler = None
 
@@ -34,14 +34,17 @@ class Client(ABC):
         pass
 
     def receive_model(self, global_model):
-        self.model = deepcopy(global_model).to(device=self.device)
+        if self.model is None:
+            self.model = deepcopy(global_model).to(device=self.device)
+        else:
+            self.model.load_state_dict(global_model.state_dict())
 
-    def init_optimizer(self):
+    def init_client(self):
         self.optimizer = get_optimizer(self.optimizer_name, self.model, self.lr)
         self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
 
-    def update_lr(self, global_metric, global_rounds):
-        self.lr_scheduler.step(global_metric, epoch=global_rounds)
+    def update_lr(self, global_metric):
+        self.lr_scheduler.step(global_metric)
 
     def evaluate_local_model(self):
         self.model.eval()
@@ -64,6 +67,7 @@ class Client(ABC):
         all_predictions = torch.cat(all_predictions)
 
         avg_loss = total_loss / len(self.client_val_loader)
+        # print(f'Client {self.id} loss: {avg_loss}')
         accuracy = metrics.multiclass_accuracy(all_predictions, all_labels, num_classes=self.num_classes)
         # precision = metrics.multiclass_precision(all_predictions, all_labels, num_classes=self.num_classes)
         # recall = metrics.multiclass_recall(all_predictions, all_labels, num_classes=self.num_classes)

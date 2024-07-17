@@ -3,7 +3,6 @@ import time
 from datetime import datetime
 import torch
 from utils.args import parse_args
-from utils.lr_scheduler import LossBasedLRScheduler
 from utils.utils import load_model, load_dataset, get_client_data_indices
 from clinets.client_factory import ClientFactory
 from servers.server_factory import ServerFactory
@@ -38,7 +37,7 @@ def execute_fed_process(server, args):
         print(f"Training time: {(end_time - start_time):.2f}. Evaluation Results: {eval_results_str}")
         save_log(eval_results, args.log_dir, args.dataset_name, args.fl_method)
         if args.enable_scheduler:
-            server.lr_scheduler(eval_results['accuracy'], r)
+            server.lr_scheduler(eval_results['accuracy'])
 
 
 def execute_experiment(args, device):

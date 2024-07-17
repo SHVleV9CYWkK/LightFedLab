@@ -175,9 +175,9 @@ class PFedGateClient(Client):
 
         return loss_meta_model
 
-    def update_lr(self, global_metric, global_rounds):
-        self.lr_scheduler.step(global_metric, epoch=global_rounds)
-        self.lr_scheduler_for_gating(global_metric, epoch=global_rounds)
+    def update_lr(self, global_metric):
+        self.lr_scheduler.step(global_metric)
+        self.lr_scheduler_for_gating(global_metric)
 
     def train(self):
         self.model.train()

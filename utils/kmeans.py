@@ -58,7 +58,7 @@ class TorchKMeans:
     def _initialize_centroids(self, X):
         n_samples = 4194204 if len(X) > 4194204 else len(X)
         # 随机选择索引
-        indices = torch.randperm(len(X))[:n_samples]
+        indices = torch.randperm(len(X), device=X.device)[:n_samples]
 
         # 创建子样本
         X_subsample = X[indices]

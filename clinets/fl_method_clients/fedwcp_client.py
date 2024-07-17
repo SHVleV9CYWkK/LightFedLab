@@ -2,7 +2,7 @@ from copy import deepcopy
 import torch
 from clinets.client import Client
 from utils.kmeans import TorchKMeans
-from utils.utils import get_optimizer
+from utils.utils import get_optimizer, get_lr_scheduler
 
 
 class FedWCPClient(Client):
@@ -14,14 +14,12 @@ class FedWCPClient(Client):
     def receive_model(self, global_model):
         self.global_model = deepcopy(global_model).to(device=self.device)
 
-    def init_optimizer(self):
-        return
-
-    def init_local_model(self, model):
-        self.model = deepcopy(model).to(device=self.device)
+    def init_client(self):
+        self.model = deepcopy(self.global_model).to(device=self.device)
         self.preclustered_model_state_dict = self.model.state_dict()
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
         self.optimizer = get_optimizer(self.optimizer_name, self.model, self.lr)
+        self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
 
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
@@ -70,12 +68,13 @@ class FedWCPClient(Client):
 
     def train(self):
         ref_momentum = self._compute_global_local_model_difference()
-        regularization_terms = self._compute_sparse_refined_regularization(self.mask)
+        # regularization_terms = self._compute_sparse_refined_regularization(self.mask)
         self.model.load_state_dict(self.new_clustered_model_state_dict)
 
         self.model.train()
         base_decay_rate = 0.9
-        last_loss = float('inf')
+        exponential_average_loss = None
+        alpha = 0.1  # 损失平均的衰减系数
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
                 x, labels = x.to(self.device), labels.to(self.device)
@@ -85,26 +84,35 @@ class FedWCPClient(Client):
                 loss = loss_vec.mean()
                 loss.backward()
 
-                # Momentum annealing strategy 动量退火策略
-                if loss.item() < last_loss:
-                    # 防止衰减因子变得太小
+                # 更新指数加权平均损失
+                if exponential_average_loss is None:
+                    exponential_average_loss = loss.item()
+                else:
+                    exponential_average_loss = alpha * loss.item() + (1 - alpha) * exponential_average_loss
+
+                # 动量退火策略
+                if loss.item() < exponential_average_loss:
                     decay_factor = min(base_decay_rate ** (idx + 1), 0.99)
                 else:
-                    # 防止衰减因子变得太大
                     decay_factor = max(base_decay_rate ** (idx + 1) * 1.1, 0.1)
 
                 for name, param in self.model.named_parameters():
                     if name in ref_momentum:
+                        # 更新参数梯度，平衡当前梯度和动量
                         param.grad += decay_factor * ref_momentum[name]
-                        if 'weight' in name:
-                            param.grad += regularization_terms[name]
 
+                for name, param in self.model.named_parameters():
+                    if name in ref_momentum:
+                        param.grad += decay_factor * ref_momentum[name]
+                        # if 'weight' in name:
+                        #     param.grad += regularization_terms[name]
+
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
                 self.optimizer.step()
 
                 pruned_model_state_dict = self._prune_model_weights(self.mask)
                 self.model.load_state_dict(pruned_model_state_dict)
 
-                last_loss = loss.item()
         self.preclustered_model_state_dict = self.model.state_dict()
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
         return self.new_clustered_model_state_dict
