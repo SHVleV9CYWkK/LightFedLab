@@ -33,7 +33,7 @@ class PFedGateClient(Client):
             item_num_max=len(self.gating_layer.block_size_lookup_table),
             weight_max=round(self.sparse_factor * self.total_model_size.item())
         )
-        self.opt_for_gating = get_optimizer(self.optimizer_name, self.gating_layer.parameters(), lr=self.lr)
+        self.opt_for_gating = get_optimizer(self.optimizer_name, self.gating_layer, lr=self.lr)
         self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, 'reduce_on_plateau')
         self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
 

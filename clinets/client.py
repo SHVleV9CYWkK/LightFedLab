@@ -33,7 +33,7 @@ class Client(ABC):
 
     def receive_model(self, global_model):
         self.model = deepcopy(global_model).to(device=self.device)
-        self.optimizer = get_optimizer(self.optimizer_name, self.model.parameters(), self.lr)
+        self.optimizer = get_optimizer(self.optimizer_name, self.model, self.lr)
 
     def evaluate_local_model(self):
         self.model.eval()
