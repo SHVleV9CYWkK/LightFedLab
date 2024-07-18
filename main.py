@@ -43,7 +43,7 @@ def execute_fed_process(server, args):
 def execute_experiment(args, device):
     full_dataset = load_dataset(args.dataset_name)
 
-    model = load_model(args.model, num_classes=len(torch.unique(full_dataset.targets))).to(device)
+    model = load_model(args.model, num_classes=len(full_dataset.classes)).to(device)
 
     client_indices, num_clients = get_client_data_indices(args.dataset_indexes_dir, args.dataset_name,
                                                           args.split_method)

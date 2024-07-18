@@ -27,7 +27,7 @@ class FedWCPClient(Client):
         for key, weight in self.model.state_dict().items():
             if 'weight' in key:
                 original_shape = weight.shape
-                kmeans = TorchKMeans(is_sparse=True)
+                kmeans = TorchKMeans(n_clusters=16, is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)
                 kmeans.fit(flattened_weights)
 
@@ -49,11 +49,12 @@ class FedWCPClient(Client):
             difference_dict[key] = local_dict[key] - global_dict[key]
         return difference_dict
 
-    def _compute_sparse_refined_regularization(self, mask):
+    def _compute_sparse_refined_regularization(self):
         regularization_terms = {}
+        new_clustered_dict = self.new_clustered_model_state_dict
         for name, param in self.preclustered_model_state_dict.items():
             if 'weight' in name:
-                regularization_terms[name] = self.reg_lambda * ~mask[name] * param.data
+                regularization_terms[name] = self.reg_lambda * (param.data - new_clustered_dict[name])
         return regularization_terms
 
     def _prune_model_weights(self, mask_dict):
@@ -68,13 +69,12 @@ class FedWCPClient(Client):
 
     def train(self):
         ref_momentum = self._compute_global_local_model_difference()
-        # regularization_terms = self._compute_sparse_refined_regularization(self.mask)
+        # regularization_terms = self._compute_sparse_refined_regularization()
         self.model.load_state_dict(self.new_clustered_model_state_dict)
 
         self.model.train()
-        base_decay_rate = 0.5
-        exponential_average_loss = None
-        alpha = 0.5  # 损失平衡系数
+        base_decay_rate = 0.4
+        last_loss = float('inf')
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
                 pruned_model_state_dict = self._prune_model_weights(self.mask)
@@ -87,14 +87,8 @@ class FedWCPClient(Client):
                 loss = loss_vec.mean()
                 loss.backward()
 
-                # # 更新指数加权平均损失
-                if exponential_average_loss is None:
-                    exponential_average_loss = loss.item()
-                else:
-                    exponential_average_loss = alpha * loss.item() + (1 - alpha) * exponential_average_loss
-
                 # 动量退火策略
-                if loss.item() < exponential_average_loss:
+                if loss.item() < last_loss:
                     decay_factor = min(base_decay_rate ** (idx + 1) * 1.1, 0.8)
                 else:
                     decay_factor = max(base_decay_rate ** (idx + 1) / 1.1, 0.1)
@@ -105,8 +99,8 @@ class FedWCPClient(Client):
                         # if 'weight' in name:
                         #     param.grad += regularization_terms[name]
 
-                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
                 self.optimizer.step()
+                last_loss = loss.item()
 
         self.preclustered_model_state_dict = self.model.state_dict()
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()

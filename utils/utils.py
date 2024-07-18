@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
+from utils.yahoo import YahooAnswersDataset
 from torchvision import transforms
 from torchvision.models import vgg16, resnet18, alexnet, resnet50
+from transformers import BartForSequenceClassification
 from torch import nn
 import torch.optim as optim
 
@@ -35,6 +37,8 @@ def load_dataset(dataset_name):
     elif dataset_name == 'mnist':
         transform = transforms.ToTensor()
         dataset = MNIST(root='./data', train=True, download=True, transform=transform)
+    elif dataset_name == 'yahooanswers':
+        return YahooAnswersDataset(split='train')
     else:
         raise ValueError(f"dataset_name does not contain {dataset_name}")
     return dataset
@@ -59,6 +63,8 @@ def load_model(model_name, num_classes):
         model = LeafCNN1(num_classes)
     elif model_name == 'lenet':
         model = LeNet(num_classes)
+    elif model_name == 'bart':
+        model = BartForSequenceClassification.from_pretrained('facebook/bart-large', num_labels=num_classes)
     else:
         raise ValueError(f"model_name does not contain {model_name}")
     return model
