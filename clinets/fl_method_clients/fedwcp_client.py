@@ -72,11 +72,14 @@ class FedWCPClient(Client):
         self.model.load_state_dict(self.new_clustered_model_state_dict)
 
         self.model.train()
-        base_decay_rate = 0.9
+        base_decay_rate = 0.5
         exponential_average_loss = None
-        alpha = 0.1  # 损失平均的衰减系数
+        alpha = 0.5  # 损失平衡系数
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
+                pruned_model_state_dict = self._prune_model_weights(self.mask)
+                self.model.load_state_dict(pruned_model_state_dict)
+
                 x, labels = x.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
                 outputs = self.model(x)
@@ -84,7 +87,7 @@ class FedWCPClient(Client):
                 loss = loss_vec.mean()
                 loss.backward()
 
-                # 更新指数加权平均损失
+                # # 更新指数加权平均损失
                 if exponential_average_loss is None:
                     exponential_average_loss = loss.item()
                 else:
@@ -92,14 +95,9 @@ class FedWCPClient(Client):
 
                 # 动量退火策略
                 if loss.item() < exponential_average_loss:
-                    decay_factor = min(base_decay_rate ** (idx + 1) * 1.1, 0.99)
+                    decay_factor = min(base_decay_rate ** (idx + 1) * 1.1, 0.8)
                 else:
                     decay_factor = max(base_decay_rate ** (idx + 1) / 1.1, 0.1)
-
-                for name, param in self.model.named_parameters():
-                    if name in ref_momentum:
-                        # 更新参数梯度，平衡当前梯度和动量
-                        param.grad += decay_factor * ref_momentum[name]
 
                 for name, param in self.model.named_parameters():
                     if name in ref_momentum:
@@ -107,11 +105,8 @@ class FedWCPClient(Client):
                         # if 'weight' in name:
                         #     param.grad += regularization_terms[name]
 
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
+                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
                 self.optimizer.step()
-
-                pruned_model_state_dict = self._prune_model_weights(self.mask)
-                self.model.load_state_dict(pruned_model_state_dict)
 
         self.preclustered_model_state_dict = self.model.state_dict()
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()

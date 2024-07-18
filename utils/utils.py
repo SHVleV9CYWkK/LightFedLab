@@ -122,7 +122,7 @@ def plot_training_results(base_path, result_path=None, metrics=None):
 
 def get_optimizer(optimizer_name, model, lr):
     if optimizer_name == "adam":
-        return optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        return optim.Adam(model.parameters(), lr=lr)
 
     elif optimizer_name == "sgd":
         return optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)

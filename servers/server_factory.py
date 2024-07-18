@@ -21,4 +21,5 @@ class ServerFactory:
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
-        return server_prototype(clients, model, device, args.client_selection_rate, args.server_lr)
+        optimizer_name = args.optimizer_name if args.is_send_gradients else None
+        return server_prototype(clients, model, device, optimizer_name, args.client_selection_rate, args.server_lr)

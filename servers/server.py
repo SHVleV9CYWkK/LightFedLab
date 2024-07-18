@@ -3,10 +3,11 @@ import random
 import torch
 from tqdm import tqdm
 from abc import ABC, abstractmethod
+from utils.utils import get_optimizer
 
 
 class Server(ABC):
-    def __init__(self, clients, model, device, client_selection_rate=1, server_lr=0.01):
+    def __init__(self, clients, model, device, optimizer_name=None, client_selection_rate=1, server_lr=0.01):
         self.clients = clients
         self.server_lr = server_lr
         self.device = device
@@ -20,6 +21,8 @@ class Server(ABC):
         self.datasets_len = [client.train_dataset_len for client in self.clients]
         self._distribute_model()
         self._init_clients()
+        if optimizer_name:
+            self.optimizer = get_optimizer(optimizer_name, self.model, self.server_lr)
 
     @abstractmethod
     def _average_aggregate(self, weights_list):
@@ -94,14 +97,12 @@ class Server(ABC):
             if torch.isnan(sum_grad).any() or torch.isinf(sum_grad).any():
                 print(f"Gradient for {name} contains NaN or Inf.")
 
-        # 使用优化器更新模型参数
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.server_lr)
         for name, param in self.model.named_parameters():
             if name in averaged_gradients:
                 param.grad = averaged_gradients[name]
 
-        optimizer.step()
-        optimizer.zero_grad()
+        self.optimizer.step()
+        self.optimizer.zero_grad()
 
     def _sample_clients(self):
         if self.client_selection_rate != 1:
