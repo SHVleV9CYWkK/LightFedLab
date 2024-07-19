@@ -7,8 +7,8 @@ from servers.server import Server
 
 class FedMaskServer(Server):
     def __init__(self, clients, model, device, optimizer_name, client_selection_rate=1, server_lr=0.01):
+        self.global_masks = dict()
         super().__init__(clients, model, device, optimizer_name, client_selection_rate, server_lr)
-        self.global_masks = None
 
     def _init_clients(self):
         print("Initializing clients...")
@@ -16,7 +16,8 @@ class FedMaskServer(Server):
         for client in self.clients:
             mask = client.init_client()
             local_masks.append(mask)
-            self.global_masks[client.id] = {key: torch.ones_like(value, device=self.device) for key, value in mask}
+            self.global_masks[client.id] = {key: torch.ones_like(value, device=self.device)
+                                            for key, value in mask.items()}
 
     def _aggregate_masks(self, client_masks):
         """Aggregate masks from all clients and update each client's personalized mask."""

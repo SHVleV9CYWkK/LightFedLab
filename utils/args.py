@@ -48,13 +48,13 @@ def parse_args_for_visualization():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate'],
+    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask'],
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist'],
                         help='dataset name')
     parser.add_argument('--model', type=str, default='alexnet', choices=['vgg16', 'resnet18', 'cnn', 'resnet50', 'alexnet', 'leafcnn1', 'lenet'],
                         help='model name')
-    parser.add_argument('--optimizer_name', type=str, default='sgd', choices=['sgd', 'adam', 'adamw'],
+    parser.add_argument('--optimizer_name', type=str, default='adam', choices=['sgd', 'adam', 'adamw'],
                         help='The name of the optimizer used')
     parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of the local client during training')
     parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')
@@ -62,16 +62,14 @@ def parse_args():
     parser.add_argument('--local_epochs', type=int, default=1, help='number of local epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--n_rounds', type=int, default=1, help='number of global rounds')
-    parser.add_argument('--compression_ratio', type=float, default=0.5, help='The default compression ratio for FedCG and QFedCG')
+    parser.add_argument('--sparse_factor', type=float, default=0.5, help='Set the sparsity for the method that requires the sparsity or compression ratio')
     parser.add_argument('--quantization_levels', type=int, default=1, help='The default quantization level for QFedCG')
     parser.add_argument('--is_send_gradients', type=bool, default=False, help='Controls whether the client uploads gradient aggregations, FedCG and QFedCG are not controlled by this parameter.')
-    parser.add_argument('--reg_lambda', type=float, default=1e-2, help='The strength of the sparse refinement regularization term in FedWCP')
-    parser.add_argument('--sparse_compute', type=bool, default=False, help='Sparse calculations are used in FedWCP')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--log_dir', type=str, default='logs', help='log directory')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'],
                         help='determine the computing platform')
-    parser.add_argument('--split_method', type=str, default='dirichlet', choices=['dirichlet', 'label', 'clusters'],
+    parser.add_argument('--split_method', type=str, choices=['dirichlet', 'label', 'clusters'],
                         help='The methods of splitting the data set to generate non-IID are dirichlet and label '
                              'respectively. dirichlet is using dirichlet distributed. label indicates that the client '
                              'owns a subset of label')

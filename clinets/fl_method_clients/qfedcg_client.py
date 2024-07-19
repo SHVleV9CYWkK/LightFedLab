@@ -4,10 +4,11 @@ from clinets.fl_method_clients.fedcg_client import FedCGClient
 
 
 class QFedCGClient(FedCGClient):
-    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs)
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, **kwargs)
         self.quantization_levels = kwargs.get('quantization_levels', 8)
         self.last_gradient = None
+        self.qconfig = self.quantizer = self.dequantizer = None
 
     def initialize_quantization(self):
         custom_observer = default_observer.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_affine,
@@ -52,7 +53,8 @@ class QFedCGClient(FedCGClient):
             return  # 第一次迭代时，没有之前的梯度可以比较
 
         # 计算梯度创新：当前梯度与上一次梯度的差的L2范数
-        gradient_innovation = {name: (current_gradient[name] - self.last_gradient[name]).norm(2) for name in current_gradient}
+        gradient_innovation = {name: (current_gradient[name] - self.last_gradient[name]).norm(2)
+                               for name in current_gradient}
 
         # 基于梯度创新确定量化级别
         for name, innovation in gradient_innovation.items():

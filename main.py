@@ -48,8 +48,7 @@ def execute_experiment(args, device):
     client_indices, num_clients = get_client_data_indices(args.dataset_indexes_dir, args.dataset_name,
                                                           args.split_method)
 
-    criterion = torch.nn.CrossEntropyLoss(reduction="none")
-    clients = ClientFactory().create_client(num_clients, args, client_indices, full_dataset, criterion, device)
+    clients = ClientFactory().create_client(num_clients, args, client_indices, full_dataset, device)
 
     central_server = ServerFactory().create_server(args, clients, model, device)
 

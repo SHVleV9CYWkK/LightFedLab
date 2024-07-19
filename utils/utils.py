@@ -97,28 +97,15 @@ def get_optimizer(optimizer_name, parameters, lr):
         return optim.Adam(parameters, lr=lr)
 
     elif optimizer_name == "sgd":
-        return optim.SGD(parameters, lr=lr, momentum=0.9, weight_decay=5e-4)
+        return optim.SGD(parameters, lr=lr, momentum=0.9)
 
     elif optimizer_name == "adamw":
-        return optim.AdamW(parameters, lr=lr, weight_decay=5e-4)
+        return optim.AdamW(parameters, lr=lr)
     else:
-        raise NotImplementedError("Other optimizer are not implemented")
+        raise NotImplementedError(f"{optimizer_name} optimizer are not implemented")
 
 
 def get_lr_scheduler(optimizer, scheduler_name, n_rounds=None, gated_learner=False):
-    """
-    Gets torch.optim.lr_scheduler given an lr_scheduler name and an optimizer
-
-    :param optimizer:
-    :type optimizer: torch.optim.Optimizer
-    :param scheduler_name: possible are
-    :type scheduler_name: str
-    :param n_rounds: number of training rounds, only used if `scheduler_name == multi_step`
-    :type n_rounds: int
-    :return: torch.optim.lr_scheduler
-
-    """
-
     if scheduler_name == "sqrt":
         return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda x: 1 / np.sqrt(x) if x > 0 else 1)
 

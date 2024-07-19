@@ -2,8 +2,8 @@ from clinets.client import Client
 
 
 class FedAvgClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device)
         self.is_send_gradients = kwargs.get('is_send_gradients', False)
 
     def train(self):

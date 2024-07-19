@@ -8,8 +8,8 @@ from utils.utils import get_lr_scheduler, get_optimizer
 
 
 class PFedGateClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device)
         data_sample, _ = full_dataset[0]
         self.dataset_name = full_dataset.__class__.__name__.lower()
         self.input_feat_size = data_sample.numel()

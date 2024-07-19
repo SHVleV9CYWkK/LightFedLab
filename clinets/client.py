@@ -8,14 +8,14 @@ from utils.utils import get_optimizer, get_lr_scheduler
 
 
 class Client(ABC):
-    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device):
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device):
         self.id = client_id
         self.model = None
-        self.criterion = criterion
-        self.optimizer_name = optimizer_name
+        self.criterion = torch.nn.CrossEntropyLoss(reduction="none")
+        self.optimizer_name = hyperparam['optimizer_name']
         self.optimizer = None
-        self.lr = lr
-        self.epochs = epochs
+        self.lr = hyperparam['lr']
+        self.epochs = hyperparam['local_epochs']
         self.device = device
         train_indices = np.load(dataset_index['train']).tolist()
         val_indices = np.load(dataset_index['val']).tolist()
@@ -24,8 +24,10 @@ class Client(ABC):
         self.num_classes = len(full_dataset.classes)
         client_train_dataset = Subset(full_dataset, indices=train_indices)
         client_val_dataset = Subset(full_dataset, indices=val_indices)
-        self.client_train_loader = DataLoader(client_train_dataset, batch_size=bz, shuffle=False, drop_last=True)
-        self.client_val_loader = DataLoader(client_val_dataset, batch_size=bz, shuffle=False, drop_last=True)
+        self.client_train_loader = DataLoader(client_train_dataset, batch_size=hyperparam['bz'],
+                                              shuffle=False, drop_last=True)
+        self.client_val_loader = DataLoader(client_val_dataset, batch_size=hyperparam['bz'],
+                                            shuffle=False, drop_last=True)
         self.global_metric = self.global_epoch = 0
         self.lr_scheduler = None
 

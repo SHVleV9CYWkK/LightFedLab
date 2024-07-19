@@ -2,12 +2,11 @@ from copy import deepcopy
 import torch
 from clinets.client import Client
 from utils.kmeans import TorchKMeans
-from utils.utils import get_optimizer, get_lr_scheduler
 
 
 class FedWCPClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device)
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 

@@ -6,11 +6,11 @@ from models.fedmask.mask_model import MaskedModel
 
 
 class FedMaskClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device,
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device,
                  **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device)
         self.mask_model = None
-        self.pruning_rate = kwargs.get('pruning rate', 0.2)
+        self.pruning_rate = kwargs.get('sparse_factor', 0.2)
 
     def _local_train(self):
         self.mask_model.train()
@@ -19,7 +19,7 @@ class FedMaskClient(Client):
                 x, labels = x.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
                 outputs = self.mask_model(x)
-                loss = self.criterion(outputs, labels)
+                loss = self.criterion(outputs, labels).mean()
                 loss.backward()
 
                 self.optimizer.step()
@@ -56,9 +56,8 @@ class FedMaskClient(Client):
     def init_client(self):
         self.mask_model = MaskedModel(self.model)
         mask_parameters = []
-        for name, param in self.mask_model.named_parameters():
-            if "mask_" in name:
-                mask_parameters.append(param)
+        for name, param in self.mask_model.masks.items():
+            mask_parameters.append(param)
         self.optimizer = get_optimizer(self.optimizer_name, mask_parameters, self.lr)
         self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
         return self._client_pruning()

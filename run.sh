@@ -1,6 +1,6 @@
-python main.py --fl_method pfedgate --dataset_name emnist --model leafcnn1 --local_epochs 1 --lr 0.1 --batch_size 128 --n_rounds 30 --seed 42 --device cpu --split_method clusters
-python main.py --fl_method fedwcp --dataset_name emnist --model leafcnn1 --local_epochs 1 --lr 0.005 --batch_size 128 --n_rounds 30 --seed 42 --device mps --split_method clusters
-python main.py --fl_method fedavg --dataset_name emnist --model leafcnn1 --local_epochs 1 --lr 0.005 --batch_size 128 --n_rounds 30 --seed 42 --device mps --split_method clusters
+python main.py --fl_method pfedgate --dataset_name emnist --model leafcnn1 --local_epochs 1 --lr 0.1 --batch_size 128 --n_rounds 30 --seed 42 --device cpu --split_method clusters --optimizer_name adam
+python main.py --fl_method fedwcp --dataset_name emnist --model leafcnn1 --local_epochs 1 --lr 0.001 --batch_size 128 --n_rounds 30 --seed 42 --device mps --split_method clusters --optimizer_name adam
+python main.py --fl_method fedavg --dataset_name emnist --model leafcnn1 --local_epochs 1 --lr 0.005 --batch_size 128 --n_rounds 30 --seed 42 --device mps --split_method clusters --optimizer_name adam
 
 
 

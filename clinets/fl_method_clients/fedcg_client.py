@@ -3,9 +3,9 @@ from clinets.client import Client
 
 
 class FedCGClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, optimizer_name, bz, lr, epochs, criterion, device)
-        self.compression_ratio = kwargs.get('compression_ratio', 0.5)
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device)
+        self.compression_ratio = kwargs.get('sparse_factor', 0.5)
         self.gradient_residuals = None
 
     def compress_gradients(self, param_changes):
