@@ -19,37 +19,31 @@ class FedMaskServer(Server):
             self.global_masks[client.id] = {key: torch.ones_like(value, device=self.device)
                                             for key, value in mask.items()}
 
-    def _aggregate_masks(self, client_masks):
-        """Aggregate masks from all clients and update each client's personalized mask."""
-        for client_id, masks in client_masks.items():
-            # Get the current global mask for this client
-            global_mask = self.global_masks[client_id]
+    def _aggregate_masks(self):
+        """Aggregate masks from all clients based on consensus."""
+        # Initialize the count of agreement for each parameter across all clients
+        mask_agreement_count = {}
+        consensus_threshold = len(self.global_masks) // 2
 
-            # Iterate over each parameter in the mask
-            for param_name, client_mask in masks.items():
-                # Create a mask that will hold the aggregation result
-                aggregation_mask = torch.zeros_like(client_mask)
+        # Initialize the agreement count dictionary
+        for client_id, masks in self.global_masks.items():
+            for param_name, mask in masks.items():
+                if param_name not in mask_agreement_count:
+                    mask_agreement_count[param_name] = torch.zeros_like(mask)
+                # Sum up the masks from all clients for each parameter
+                mask_agreement_count[param_name] += mask
 
-                # Count how many clients agree on each bit
-                agreement_count = torch.zeros_like(client_mask)
-
-                # Check this mask against all other clients' masks for the same parameter
-                for other_client_id, other_masks in client_masks.items():
-                    if other_client_id != client_id:
-                        agreement_count += (client_mask == other_masks[param_name]).int()
-
-                # Determine consensus (more than half of the clients agree on a bit)
-                consensus_threshold = len(client_masks) // 2
-                consensus_mask = agreement_count > consensus_threshold
-
-                # Apply consensus mask to update global mask for this client
-                global_mask[param_name] = consensus_mask.float()
-
-            # Update the global mask for this client
-            self.global_masks[client_id] = global_mask
+        # Update the global masks based on the consensus count
+        for client_id, masks in self.global_masks.items():
+            for param_name, global_mask in masks.items():
+                # Apply the consensus check to update the global mask
+                consensus_mask = mask_agreement_count[param_name] > consensus_threshold
+                self.global_masks[client_id][param_name] = consensus_mask.float()
 
     def _average_aggregate(self, weights_list):
-        self._aggregate_masks(weights_list)
+        for id, weights in weights_list.items():
+            self.global_masks[id] = weights
+        self._aggregate_masks()
 
     def _distribute_mask(self):
         for client in self.clients:

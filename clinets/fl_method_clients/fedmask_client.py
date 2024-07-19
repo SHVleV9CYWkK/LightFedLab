@@ -20,7 +20,6 @@ class FedMaskClient(Client):
                 self.optimizer.zero_grad()
                 outputs = self.mask_model(x)
                 loss = self.criterion(outputs, labels).mean()
-                print(f"Client{self.id}: Loss:{loss.item()}")
                 loss.backward()
                 self.optimizer.step()
 
