@@ -40,13 +40,13 @@ class Client(ABC):
             self.model.load_state_dict(global_model.state_dict())
 
     def init_client(self):
-        self.optimizer = get_optimizer(self.optimizer_name, self.model, self.lr)
+        self.optimizer = get_optimizer(self.optimizer_name, self.model.parameters(), self.lr)
         self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
 
     def update_lr(self, global_metric):
         self.lr_scheduler.step(global_metric)
 
-    def evaluate_local_model(self):
+    def evaluate_model(self):
         self.model.eval()
         total_loss = 0
         all_labels = []
@@ -67,7 +67,6 @@ class Client(ABC):
         all_predictions = torch.cat(all_predictions)
 
         avg_loss = total_loss / len(self.client_val_loader)
-        # print(f'Client {self.id} loss: {avg_loss}')
         accuracy = metrics.multiclass_accuracy(all_predictions, all_labels, num_classes=self.num_classes)
         # precision = metrics.multiclass_precision(all_predictions, all_labels, num_classes=self.num_classes)
         # recall = metrics.multiclass_recall(all_predictions, all_labels, num_classes=self.num_classes)

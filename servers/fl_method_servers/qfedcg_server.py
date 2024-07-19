@@ -25,10 +25,6 @@ class QFedCGServer(FedCGServer):
         torch.quantization.prepare(self.dequantizer, inplace=True)
         torch.quantization.convert(self.dequantizer, inplace=True)
 
-    def train(self):
-        [client.initialize_quantization() for client in self.clients]
-        super().train()
-
     def _handle_gradients(self, quantized_tensor):
         current_gradient = self.dequantizer(quantized_tensor)
         return current_gradient

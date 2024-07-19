@@ -1,4 +1,3 @@
-import time
 import random
 import torch
 from tqdm import tqdm
@@ -7,7 +6,7 @@ from utils.utils import get_optimizer
 
 
 class Server(ABC):
-    def __init__(self, clients, model, device, optimizer_name=None, client_selection_rate=1, server_lr=0.01):
+    def __init__(self, clients, model, device, optimizer_name, client_selection_rate=1, server_lr=0.01):
         self.clients = clients
         self.server_lr = server_lr
         self.device = device
@@ -22,7 +21,7 @@ class Server(ABC):
         self._distribute_model()
         self._init_clients()
         if optimizer_name:
-            self.optimizer = get_optimizer(optimizer_name, self.model, self.server_lr)
+            self.optimizer = get_optimizer(optimizer_name, self.model.parameters(), self.server_lr)
 
     @abstractmethod
     def _average_aggregate(self, weights_list):
@@ -40,7 +39,7 @@ class Server(ABC):
     def _evaluate_model(self):
         result_list = []
         for client in self.selected_clients:
-            result = client.evaluate_local_model()
+            result = client.evaluate_model()
             result_list.append(result)
 
         metrics_keys = result_list[0].keys()
@@ -110,21 +109,22 @@ class Server(ABC):
         else:
             self.selected_clients = self.clients
 
-    def train(self):
+    def _clients_train(self):
         self._sample_clients()
         pbar = tqdm(total=len(self.selected_clients))
-        local_weights = []
+        locals_weights = dict()
         for client in self.selected_clients:
             client_weights = client.train()
-            local_weights.append(client_weights)
+            locals_weights[client.id] = client_weights
             pbar.update(1)
         pbar.clear()
         pbar.close()
+        return locals_weights
+
+    def train(self):
+        clients_weights = self._clients_train()
         print("Aggregating models...")
-        start_time = time.time()
-        self._average_aggregate(local_weights)
-        end_time = time.time()
-        print(f"Aggregation takes {(end_time - start_time):.3f} seconds")
+        self._average_aggregate(clients_weights)
         self._distribute_model()
 
     def evaluate(self):
@@ -135,4 +135,3 @@ class Server(ABC):
     def lr_scheduler(self, metric):
         for client in self.selected_clients:
             client.update_lr(metric)
-

@@ -18,8 +18,7 @@ class FedWCPClient(Client):
         self.model = deepcopy(self.global_model).to(device=self.device)
         self.preclustered_model_state_dict = self.model.state_dict()
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
-        self.optimizer = get_optimizer(self.optimizer_name, self.model, self.lr)
-        self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
+        super().init_client()
 
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}

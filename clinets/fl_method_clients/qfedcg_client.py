@@ -65,6 +65,7 @@ class QFedCGClient(FedCGClient):
         self.last_gradient = current_gradient
 
     def train(self):
+        self.initialize_quantization()
         result = super().train()
         self.calculate_quantization_levels(result)
         return result

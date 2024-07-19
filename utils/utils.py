@@ -92,16 +92,15 @@ def get_client_data_indices(root_dir, dataset_name, split_method):
     return client_indices, num_clients
 
 
-
-def get_optimizer(optimizer_name, model, lr):
+def get_optimizer(optimizer_name, parameters, lr):
     if optimizer_name == "adam":
-        return optim.Adam(model.parameters(), lr=lr)
+        return optim.Adam(parameters, lr=lr)
 
     elif optimizer_name == "sgd":
-        return optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
+        return optim.SGD(parameters, lr=lr, momentum=0.9, weight_decay=5e-4)
 
     elif optimizer_name == "adamw":
-        return optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-4)
+        return optim.AdamW(parameters, lr=lr, weight_decay=5e-4)
     else:
         raise NotImplementedError("Other optimizer are not implemented")
 
