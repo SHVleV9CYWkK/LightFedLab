@@ -64,7 +64,7 @@ class Server(ABC):
         total_len = sum(datasets_len)
         average_weights = {}
         for key in weights_list[0].keys():
-            weighted_sum = sum(weights[key] * len_ for weights, len_ in zip(weights_list, datasets_len))
+            weighted_sum = sum(weights_list[client_id][key] * len_ for client_id, len_ in zip(weights_list, datasets_len))
             average_weights[key] = weighted_sum / total_len
 
         self.model.load_state_dict(average_weights)

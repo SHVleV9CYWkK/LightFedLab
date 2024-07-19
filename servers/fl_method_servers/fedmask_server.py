@@ -20,7 +20,7 @@ class FedMaskServer(Server):
                                             for key, value in mask.items()}
 
     def _aggregate_masks(self):
-        """Aggregate masks from all clients based on consensus."""
+        # TODO: 检查聚合方法，可能于论文不一致
         # Initialize the count of agreement for each parameter across all clients
         mask_agreement_count = {}
         consensus_threshold = len(self.global_masks) // 2

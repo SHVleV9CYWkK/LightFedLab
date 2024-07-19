@@ -35,6 +35,17 @@ class Client(ABC):
     def train(self):
         pass
 
+    def _local_train(self):
+        self.model.train()
+        for epoch in range(self.epochs):
+            for x, labels in self.client_train_loader:
+                x, labels = x.to(self.device), labels.to(self.device)
+                self.optimizer.zero_grad()
+                outputs = self.model(x)
+                loss = self.criterion(outputs, labels).mean()
+                loss.backward()
+                self.optimizer.step()
+
     def receive_model(self, global_model):
         if self.model is None:
             self.model = deepcopy(global_model).to(device=self.device)
