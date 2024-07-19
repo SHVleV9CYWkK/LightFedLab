@@ -20,8 +20,8 @@ class FedMaskClient(Client):
                 self.optimizer.zero_grad()
                 outputs = self.mask_model(x)
                 loss = self.criterion(outputs, labels).mean()
+                print(f"Client{self.id}: Loss:{loss.item()}")
                 loss.backward()
-
                 self.optimizer.step()
 
     def receive_mask(self, masks):
@@ -55,10 +55,7 @@ class FedMaskClient(Client):
 
     def init_client(self):
         self.mask_model = MaskedModel(self.model)
-        mask_parameters = []
-        for name, param in self.mask_model.masks.items():
-            mask_parameters.append(param)
-        self.optimizer = get_optimizer(self.optimizer_name, mask_parameters, self.lr)
+        self.optimizer = get_optimizer(self.optimizer_name, self.mask_model.parameters(), self.lr)
         self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
         return self._client_pruning()
 

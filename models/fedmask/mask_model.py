@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 
 class MaskedModel(torch.nn.Module):
@@ -7,45 +8,53 @@ class MaskedModel(torch.nn.Module):
         self.model = model
         self.masks = {}
 
-        # 使用您的方法找到最后连续的全连接层名字
         dense_layer_names = self._find_last_consecutive_dense_layers()
-        # 为这些全连接层创建掩码
         for name, module in self.model.named_modules():
             if name in dense_layer_names:
-                mask = torch.nn.Parameter(torch.ones_like(module.weight.data, requires_grad=True))
+                mask = torch.nn.Parameter(torch.ones_like(module.weight, requires_grad=True))
                 self.register_parameter(f"mask_{name.replace('.', '_')}", mask)
                 self.masks[name] = mask
 
     def forward(self, x):
-        original_weights = dict()
+        # 我们需要跟踪模型中当前的子模块路径
+        def apply_mask(module, input, output):
+            for name, m in self.model.named_modules():
+                if m is module:
+                    if name in self.masks:
+                        mask = torch.sigmoid(self.masks[name])
+                        return F.linear(input[0], module.weight * mask, module.bias)
+            return output
+
+        # 为所有全连接层添加forward hook
+        hooks = []
         for name, module in self.model.named_modules():
-            if name in self.masks:
-                original_weights[name] = module.weight.data
-                masked_weight = original_weights[name] * torch.sigmoid(self.masks[name])
-                module.weight.data = masked_weight
+            if isinstance(module, torch.nn.Linear):
+                module_path = name.split('.')
+                hook = module.register_forward_hook(apply_mask)
+                hooks.append(hook)
+
+        # 执行前向传播
         x = self.model(x)
-        for name, module in self.model.named_modules():
-            if name in self.masks:
-                module.weight.data = original_weights[name]
+
+        # 移除所有hooks
+        for hook in hooks:
+            hook.remove()
         return x
 
-    def _find_last_consecutive_dense_layers(self):
-        # 从模型的子模块中获取所有层的名称和模块，并反转列表以从后向前遍历
-        layers = list(self.model.named_modules())[::-1]
+    def parameters(self, recurse: bool = True):
+        for name, param in super().named_parameters():
+            if 'mask' in name:
+                yield param
 
-        # 初始化列表以存储全连接层的名称
+    def _find_last_consecutive_dense_layers(self):
+        layers = list(self.model.named_modules())[::-1]
         dense_layer_names = []
 
-        # 遍历模型的层
         for name, module in layers:
-            # 如果遇到全连接层，则记录其名称
             if isinstance(module, torch.nn.Linear) and "dense" in name:
                 dense_layer_names.append(name)
-            # 如果遇到非全连接层且已有全连接层被记录，停止搜索
             elif "dense" in name:
                 continue
             elif "dense" not in name:
                 break
-
-        # 返回找到的全连接层名称，顺序反转回正常顺序
         return dense_layer_names[::-1]
