@@ -29,7 +29,6 @@ class MaskedModel(torch.nn.Module):
         hooks = []
         for name, module in self.model.named_modules():
             if isinstance(module, torch.nn.Linear):
-                module_path = name.split('.')
                 hook = module.register_forward_hook(apply_mask)
                 hooks.append(hook)
 
@@ -51,7 +50,7 @@ class MaskedModel(torch.nn.Module):
         dense_layer_names = []
 
         for name, module in layers:
-            if isinstance(module, torch.nn.Linear) and "dense" in name:
+            if isinstance(module, torch.nn.Linear):
                 dense_layer_names.append(name)
             elif "dense" in name:
                 continue

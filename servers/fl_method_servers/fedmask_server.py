@@ -1,6 +1,4 @@
 import torch
-from tqdm import tqdm
-import time
 
 from servers.server import Server
 
@@ -20,29 +18,43 @@ class FedMaskServer(Server):
                                             for key, value in mask.items()}
 
     def _aggregate_masks(self):
-        # TODO: 检查聚合方法，可能于论文不一致
-        # Initialize the count of agreement for each parameter across all clients
-        mask_agreement_count = {}
-        consensus_threshold = len(self.global_masks) // 2
+        # Aggregate only elements that appear in two or more masks
+        aggregated_masks = {}
 
-        # Initialize the agreement count dictionary
-        for client_id, masks in self.global_masks.items():
-            for param_name, mask in masks.items():
-                if param_name not in mask_agreement_count:
-                    mask_agreement_count[param_name] = torch.zeros_like(mask)
-                # Sum up the masks from all clients for each parameter
-                mask_agreement_count[param_name] += mask
+        # First, count how many times each element in each parameter is set to 1 across all clients
+        mask_count = {}
+        for client_masks in self.global_masks.values():
+            for param_name, mask in client_masks.items():
+                if param_name not in mask_count:
+                    mask_count[param_name] = torch.zeros_like(mask)
+                mask_count[param_name] += mask
 
-        # Update the global masks based on the consensus count
-        for client_id, masks in self.global_masks.items():
-            for param_name, global_mask in masks.items():
-                # Apply the consensus check to update the global mask
-                consensus_mask = mask_agreement_count[param_name] > consensus_threshold
-                self.global_masks[client_id][param_name] = consensus_mask.float()
+        # Determine which elements appear in more than one mask
+        for param_name, count in mask_count.items():
+            # Create a mask where elements that appear in at least two masks are 1, others are 0
+            # This boolean mask will determine which elements to aggregate
+            aggregation_criteria = count >= 2
+            if param_name not in aggregated_masks:
+                aggregated_masks[param_name] = torch.zeros_like(count)
+
+            # Aggregate only the elements that meet the criteria
+            for client_id, client_masks in self.global_masks.items():
+                aggregated_masks[param_name] += client_masks[param_name] * aggregation_criteria
+
+            # Average the values that were aggregated
+            # Avoid division by zero by using maximum with ones tensor
+            element_count = torch.max(torch.tensor(1.0), aggregation_criteria.float() * count)
+            aggregated_masks[param_name] /= element_count
+
+        # Update the global masks based on aggregation result
+        for client_id in self.global_masks:
+            for param_name in self.global_masks[client_id]:
+                # Only update the elements that were actually aggregated
+                self.global_masks[client_id][param_name] = aggregated_masks[param_name]
 
     def _average_aggregate(self, weights_list):
-        for id, weights in weights_list.items():
-            self.global_masks[id] = weights
+        for idx, weights in weights_list.items():
+            self.global_masks[idx] = weights
         self._aggregate_masks()
 
     def _distribute_mask(self):
