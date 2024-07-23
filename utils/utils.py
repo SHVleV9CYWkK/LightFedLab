@@ -26,6 +26,9 @@ def load_dataset(dataset_name):
         ])
         dataset = CIFAR100(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'emnist':
+        url = 'https://biometrics.nist.gov/cs_links/EMNIST/gzip.zip'
+        if url != EMNIST.url:
+            print('The URL of the dataset is inconsistent with the latest URL')
         transform = transforms.Compose(
             [transforms.ToTensor(),
              transforms.Normalize((0.1307,), (0.3081,))
