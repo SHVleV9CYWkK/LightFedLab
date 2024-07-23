@@ -16,7 +16,6 @@ class FedCGClient(Client):
 
         # 生成压缩后的参数变化量字典
         compressed_param_changes = {}
-        idx_offset = 0
         for name, change in param_changes.items():
             if 'bias' in name:
                 compressed_param_changes[name] = change
@@ -30,20 +29,9 @@ class FedCGClient(Client):
                 mask[top_indices] = True
                 mask = mask.reshape(change.shape)
                 self.gradient_residuals[name] = change * (~mask)
-
-                if next(self.model.parameters()).is_cuda or next(self.model.parameters()).is_cpu:
-                    relevant_indices = (top_indices >= idx_offset) & (top_indices < idx_offset + num_elements)
-                    adjusted_indices = top_indices[relevant_indices] - idx_offset
-                    indices = adjusted_indices.unsqueeze(0)
-                    values = change.flatten()[adjusted_indices]
-                    size = change.size()
-                    sparse_tensor = torch.sparse_coo_tensor(indices, values, size, device=change.device)
-                    compressed_param_changes[name] = sparse_tensor
-                else:
-                    # 在不支持稀疏张量的设备上使用密集格式
-                    compressed_change = torch.zeros_like(change).view(-1)
-                    compressed_change[top_indices] = change.view(-1)[top_indices]
-                    compressed_param_changes[name] = compressed_change.view(change.shape)
+                compressed_change = torch.zeros_like(change).view(-1)
+                compressed_change[top_indices] = change.view(-1)[top_indices]
+                compressed_param_changes[name] = compressed_change.view(change.shape)
 
         return compressed_param_changes
 
