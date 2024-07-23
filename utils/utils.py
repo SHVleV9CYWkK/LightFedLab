@@ -29,6 +29,7 @@ def load_dataset(dataset_name):
         url = 'https://biometrics.nist.gov/cs_links/EMNIST/gzip.zip'
         if url != EMNIST.url:
             print('The URL of the dataset is inconsistent with the latest URL')
+            EMNIST.url = url
         transform = transforms.Compose(
             [transforms.ToTensor(),
              transforms.Normalize((0.1307,), (0.3081,))
