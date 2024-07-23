@@ -83,8 +83,8 @@ class Server(ABC):
         total_weight = sum(dataset_len)
 
         # 累加梯度
-        for gradients, weight in zip(weights_list, dataset_len):
-            for name, grad in gradients.items():
+        for client_id, weight in zip(weights_list, dataset_len):
+            for name, grad in weights_list[client_id].items():
                 if grad is not None:
                     sum_gradients[name] += self._handle_gradients(grad).to(self.device) * weight  # 确保梯度在正确的设备上
 
