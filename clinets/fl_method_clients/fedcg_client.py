@@ -52,6 +52,17 @@ class FedCGClient(Client):
         initial_params = {name: param.clone() for name, param in self.model.named_parameters()}
         if self.gradient_residuals is None:
             self.gradient_residuals = {name: torch.zeros_like(param) for name, param in self.model.named_parameters()}
-        self._local_train()
+        for epoch in range(self.epochs):
+            for x, labels in self.client_train_loader:
+                x, labels = x.to(self.device), labels.to(self.device)
+                self.optimizer.zero_grad()
+                outputs = self.model(x)
+                loss = self.criterion(outputs, labels).mean()
+                loss.backward()
+                for name, param in self.model.named_parameters():
+                    if param.grad is not None:
+                        param.grad += self.gradient_residuals[name]
+                self.optimizer.step()
+
         param_changes = {name: initial_params[name] - param.data for name, param in self.model.named_parameters()}
         return self.compress_gradients(param_changes)
