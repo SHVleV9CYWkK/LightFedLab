@@ -34,7 +34,7 @@ This command will create `data` and `client_indices` directories in the root dir
 To run a federated learning experiment using the FedAvg algorithm with the following settings:
 
 ```bash
-python main.py --fl_method fedavg --dataset_name mnist --model cnn --lr 1e-4 --server_lr 0.0005 --batch_size 16 --n_rounds 10 --seed 42 --device cpu --split_method dirichlet --is_send_gradients True
+python main.py --fl_method fedavg --dataset_name mnist --model cnn --lr 1e-4 --server_lr 0.0005 --batch_size 16 --n_rounds 10 --seed 42 --device cpu --split_method dirichlet
 ```
 
 ### Parameters
@@ -51,7 +51,6 @@ python main.py --fl_method fedavg --dataset_name mnist --model cnn --lr 1e-4 --s
 - `--seed`: Seed for random number generation.
 - `--device`: Device to run the training on (`cpu`, `cuda`, `mps`).
 - `--split_method`: Method used to split the dataset (`dirichlet`).
-- `--is_send_gradients`: Whether to send gradients back to server.
 
 
 ### Visualizing Training Results

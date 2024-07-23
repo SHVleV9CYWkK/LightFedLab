@@ -75,7 +75,6 @@ def parse_args():
                              'owns a subset of label')
     parser.add_argument('--dataset_indexes_dir', type=str, default='client_indices',
                         help='The root directory of the local client dataset index')
-    parser.add_argument('--is_generate_image', type=bool, default=True, help='whether or not to visualize the results')
 
     parser.add_argument('--enable_scheduler', type=bool, default=True, help='whether to enable the learning rate scheduler')
 

@@ -37,7 +37,6 @@ class ClientFactory:
                                             full_dataset,
                                             train_hyperparam,
                                             device,
-                                            is_send_gradients=args.is_send_gradients,
                                             quantization_levels=args.quantization_levels,
                                             sparse_factor=args.sparse_factor))
 
