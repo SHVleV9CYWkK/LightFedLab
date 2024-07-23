@@ -55,12 +55,11 @@ class FedWCPClient(Client):
                 regularization_terms[name] = self.reg_lambda * (param.data - new_clustered_dict[name])
         return regularization_terms
 
-    def _prune_model_weights(self, mask_dict):
+    def _prune_model_weights(self):
         pruned_state_dict = {}
         for key, weight in self.model.state_dict().items():
-            if key in mask_dict:
-                pruned_weight = weight * mask_dict[key]
-                pruned_state_dict[key] = pruned_weight
+            if key in self.mask:
+                pruned_state_dict[key] = weight * self.mask[key]
             else:
                 pruned_state_dict[key] = weight
         return pruned_state_dict
@@ -68,15 +67,14 @@ class FedWCPClient(Client):
     def train(self):
         ref_momentum = self._compute_global_local_model_difference()
         # regularization_terms = self._compute_sparse_refined_regularization()
-        self.model.load_state_dict(self.new_clustered_model_state_dict)
 
         self.model.train()
-        base_decay_rate = 0.4
-        last_loss = float('inf')
+        base_decay_rate = 0.5
+        exponential_average_loss = None
+        alpha = 0.5  # 损失平衡系数
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
-                pruned_model_state_dict = self._prune_model_weights(self.mask)
-                self.model.load_state_dict(pruned_model_state_dict)
+                self.model.load_state_dict(self._prune_model_weights())
 
                 x, labels = x.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
@@ -85,8 +83,13 @@ class FedWCPClient(Client):
                 loss = loss_vec.mean()
                 loss.backward()
 
+                if exponential_average_loss is None:
+                    exponential_average_loss = loss.item()
+                else:
+                    exponential_average_loss = alpha * loss.item() + (1 - alpha) * exponential_average_loss
+
                 # 动量退火策略
-                if loss.item() < last_loss:
+                if loss.item() < exponential_average_loss:
                     decay_factor = min(base_decay_rate ** (idx + 1) * 1.1, 0.8)
                 else:
                     decay_factor = max(base_decay_rate ** (idx + 1) / 1.1, 0.1)
@@ -98,7 +101,6 @@ class FedWCPClient(Client):
                         #     param.grad += regularization_terms[name]
 
                 self.optimizer.step()
-                last_loss = loss.item()
 
         self.preclustered_model_state_dict = self.model.state_dict()
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
