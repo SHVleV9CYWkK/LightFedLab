@@ -65,6 +65,7 @@ def parse_args():
     parser.add_argument('--sparse_factor', type=float, default=0.5, help='Set the sparsity for the method that requires the sparsity or compression ratio')
     parser.add_argument('--quantization_levels', type=int, default=1, help='The default quantization level for QFedCG')
     parser.add_argument('--is_send_gradients', type=bool, default=False, help='Controls whether the client uploads gradient aggregations, FedCG and QFedCG are not controlled by this parameter.')
+    parser.add_argument('--n_job', type=int, default=1, help='The number of processes that execute client training in parallel in the server')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--log_dir', type=str, default='logs', help='log directory')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'],

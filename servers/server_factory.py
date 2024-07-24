@@ -24,4 +24,4 @@ class ServerFactory:
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
-        return server_prototype(clients, model, device, args.optimizer_name, args.client_selection_rate, args.server_lr)
+        return server_prototype(clients, model, device, args.optimizer_name, args.client_selection_rate, args.server_lr, args.n_job)

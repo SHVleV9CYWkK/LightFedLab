@@ -1,15 +1,18 @@
 import random
 import torch
+from torch.multiprocessing import Pool
+import torch.multiprocessing as mp
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 from utils.utils import get_optimizer
 
 
 class Server(ABC):
-    def __init__(self, clients, model, device, optimizer_name, client_selection_rate=1, server_lr=0.01):
+    def __init__(self, clients, model, device, optimizer_name, client_selection_rate=1, server_lr=0.01, n_job=1):
         self.clients = clients
         self.server_lr = server_lr
         self.device = device
+        self.n_job = n_job
         self.client_selection_rate = client_selection_rate
         self.is_all_clients = client_selection_rate == 1
         if self.is_all_clients:
@@ -21,6 +24,7 @@ class Server(ABC):
         self._distribute_model()
         self._init_clients()
         self.optimizer_name = optimizer_name
+        mp.set_start_method('spawn')
 
     @abstractmethod
     def _average_aggregate(self, weights_list):
@@ -109,16 +113,29 @@ class Server(ABC):
         else:
             self.selected_clients = self.clients
 
+    @staticmethod
+    def _execute_train_client(client):
+        client_weights = client.train()
+        return client.id, client_weights
+
     def _clients_train(self):
         self._sample_clients()
-        pbar = tqdm(total=len(self.selected_clients))
-        locals_weights = dict()
-        for client in self.selected_clients:
-            client_weights = client.train()
-            locals_weights[client.id] = client_weights
-            pbar.update(1)
-        pbar.clear()
-        pbar.close()
+        if (self.device == 'cuda' or self.device == 'cpu') and self.n_job > 1:
+            # 创建一个进程池，使用两个进程
+            with Pool(2) as pool:
+                # 使用map函数提交任务，它会自动分配任务给两个进程
+                results = list(tqdm(pool.imap(self._execute_train_client, self.selected_clients), total=len(self.selected_clients)))
+            # 将结果转换为字典
+            locals_weights = {client_id: weights for client_id, weights in results}
+        else:
+            pbar = tqdm(total=len(self.selected_clients))
+            locals_weights = dict()
+            for client in self.selected_clients:
+                client_weights = client.train()
+                locals_weights[client.id] = client_weights
+                pbar.update(1)
+            pbar.clear()
+            pbar.close()
         return locals_weights
 
     def train(self):
