@@ -68,20 +68,18 @@ class Server(ABC):
         return grad
 
     def _weight_aggregation(self, weights_list):
-        weights_list = weights_list.to(device=self.device)
         datasets_len = self.datasets_len if self.is_all_clients else [client.dataset_len for client in
                                                                       self.selected_clients]
         total_len = sum(datasets_len)
         average_weights = {}
         for key in weights_list[0].keys():
-            weighted_sum = sum(weights_list[client_id][key] * len_
+            weighted_sum = sum(weights_list[client_id][key].to(self.device) * len_
                                for client_id, len_ in zip(weights_list, datasets_len))
             average_weights[key] = weighted_sum / total_len
 
         self.model.load_state_dict(average_weights)
 
     def _gradient_aggregation(self, weights_list, dataset_len=None):
-        weights_list = weights_list.to(device=self.device)
         # 获取模型参数并确定设备
         global_weights = self.model.state_dict()
 
@@ -98,7 +96,7 @@ class Server(ABC):
         for client_id, weight in zip(weights_list, dataset_len):
             for name, grad in weights_list[client_id].items():
                 if grad is not None:
-                    sum_gradients[name] += self._handle_gradients(grad).to(self.device) * weight  # 确保梯度在正确的设备上
+                    sum_gradients[name] += self._handle_gradients(grad.to(device=self.device)).to(self.device) * weight
 
         # 计算梯度的加权或非加权均值
         averaged_gradients = {name: sum_grad / total_weight for name, sum_grad in sum_gradients.items()}
