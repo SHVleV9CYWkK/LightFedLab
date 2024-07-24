@@ -1,6 +1,7 @@
 import random
+import time
+
 import torch
-from torch.multiprocessing import Pool
 import torch.multiprocessing as mp
 from tqdm import tqdm
 from abc import ABC, abstractmethod
@@ -24,7 +25,11 @@ class Server(ABC):
         self._distribute_model()
         self._init_clients()
         self.optimizer_name = optimizer_name
-        mp.set_start_method('spawn')
+        try:
+            mp.set_start_method('spawn')
+        except RuntimeError as e:
+            print("Start method 'spawn' already set or error setting it: ", str(e))
+
 
     @abstractmethod
     def _average_aggregate(self, weights_list):
@@ -121,12 +126,24 @@ class Server(ABC):
     def _clients_train(self):
         self._sample_clients()
         if (self.device == 'cuda' or self.device == 'cpu') and self.n_job > 1:
-            # 创建一个进程池，使用两个进程
-            with Pool(2) as pool:
-                # 使用map函数提交任务，它会自动分配任务给两个进程
-                results = list(tqdm(pool.imap(self._execute_train_client, self.selected_clients), total=len(self.selected_clients)))
-            # 将结果转换为字典
-            locals_weights = {client_id: weights for client_id, weights in results}
+            processes = []
+            manager = mp.Manager()
+            return_dict = manager.dict()
+
+            for client in self.selected_clients:
+                p = mp.Process(target=self._execute_train_client, args=(client, return_dict))
+                p.start()
+                processes.append(p)
+
+            with tqdm(total=len(self.selected_clients)) as pbar:
+                while len(return_dict) < len(self.selected_clients):
+                    pbar.update(len(return_dict) - pbar.n)
+                    time.sleep(1)
+
+            for p in processes:
+                p.join()
+
+            locals_weights = dict(return_dict)
         else:
             pbar = tqdm(total=len(self.selected_clients))
             locals_weights = dict()
