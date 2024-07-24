@@ -132,9 +132,9 @@ class Server(ABC):
                 torch.backends.cudnn.deterministic = True
                 torch.backends.cudnn.benchmark = False
                 torch.cuda.manual_seed_all(seed)
-            client_weights = client.train().clone()
-            cloned_weights = {k: v.clone() for k, v in client_weights.items()}  # 克隆每个张量
-            return_dict[client.id] = cloned_weights
+            client_weights = client.train()
+            detached_weights = {k: v.clone().detach().to('cpu') for k, v in client_weights.items()}
+            return_dict[client.id] = detached_weights
         except Exception as e:
             print(f"Error training client {client.id}: {str(e)}")
 
