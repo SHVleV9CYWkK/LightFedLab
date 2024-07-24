@@ -8,6 +8,15 @@ from clinets.fl_method_clients.pfedgate_client import PFedGateClient
 
 class ClientFactory:
     def create_client(self, num_client, args, dataset_index, full_dataset, device):
+        train_hyperparam = {
+            "optimizer_name": args.optimizer_name,
+            "lr": args.lr,
+            "bz": args.batch_size,
+            "local_epochs": args.local_epochs,
+            "scheduler_name": args.scheduler_name,
+            "n_rounds": args.n_rounds
+        }
+
         fl_type = args.fl_method
         if fl_type == 'fedavg':
             client_prototype = FedAvgClient
@@ -19,17 +28,12 @@ class ClientFactory:
             client_prototype = FedWCPClient
         elif fl_type == 'pfedgate':
             client_prototype = PFedGateClient
+            train_hyperparam['gating_lr'] = args.gating_lr
         elif fl_type == 'fedmask':
             client_prototype = FedMaskClient
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
-        train_hyperparam = {
-            "optimizer_name": args.optimizer_name,
-            "lr": args.lr,
-            "bz": args.batch_size,
-            "local_epochs": args.local_epochs,
-        }
         clients = []
         for idx in range(num_client):
             clients.append(client_prototype(idx,

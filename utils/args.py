@@ -58,10 +58,13 @@ def parse_args():
                         help='The name of the optimizer used')
     parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of the local client during training')
     parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')
+    parser.add_argument('--gating_lr', type=float, default=1, help='pFedgate\'s learning rate at the gate layer')
     parser.add_argument('--client_selection_rate', type=float, default=1, help='Client sampling rate')
     parser.add_argument('--local_epochs', type=int, default=1, help='number of local epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--n_rounds', type=int, default=1, help='number of global rounds')
+    parser.add_argument('--scheduler_name', type=str, default='reduce_on_plateau', choices=['sqrt', 'linear', 'constant', 'cosine_annealing', 'multi_step', 'reduce_on_plateau'],
+                        help='Select the name of the learning rate scheduler')
     parser.add_argument('--sparse_factor', type=float, default=0.5, help='Set the sparsity for the method that requires the sparsity or compression ratio')
     parser.add_argument('--quantization_levels', type=int, default=1, help='The default quantization level for QFedCG')
     parser.add_argument('--is_send_gradients', type=bool, default=False, help='Controls whether the client uploads gradient aggregations, FedCG and QFedCG are not controlled by this parameter.')

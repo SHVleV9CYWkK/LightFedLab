@@ -16,6 +16,8 @@ class Client(ABC):
         self.optimizer = None
         self.lr = hyperparam['lr']
         self.epochs = hyperparam['local_epochs']
+        self.scheduler_name = hyperparam['scheduler_name']
+        self.n_rounds = hyperparam['n_rounds']
         self.device = device
         train_indices = np.load(dataset_index['train']).tolist()
         val_indices = np.load(dataset_index['val']).tolist()
@@ -54,7 +56,7 @@ class Client(ABC):
 
     def init_client(self):
         self.optimizer = get_optimizer(self.optimizer_name, self.model.parameters(), self.lr)
-        self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
+        self.lr_scheduler = get_lr_scheduler(self.optimizer, self.scheduler_name, self.n_rounds)
 
     def update_lr(self, global_metric):
         self.lr_scheduler.step(global_metric)

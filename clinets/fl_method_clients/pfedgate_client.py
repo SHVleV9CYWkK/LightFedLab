@@ -15,6 +15,7 @@ class PFedGateClient(Client):
         self.input_feat_size = data_sample.numel()
         self.num_channels = data_sample.size(0)
         self.gating_layer = None
+        self.gating_lr = hyperparam['gating_lr']
         self.min_sparse_factor = self.total_model_size = None
         self.knapsack_solver = None
         self.sparse_factor = kwargs.get('sparse_factor', 0.5)
@@ -31,9 +32,8 @@ class PFedGateClient(Client):
             item_num_max=len(self.gating_layer.block_size_lookup_table),
             weight_max=round(self.sparse_factor * self.total_model_size.item())
         )
-        self.opt_for_gating = get_optimizer(self.optimizer_name, self.gating_layer.parameters(), lr=self.lr)
-        self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, 'reduce_on_plateau')
-        self.lr_scheduler = get_lr_scheduler(self.optimizer, 'reduce_on_plateau')
+        self.opt_for_gating = get_optimizer(self.optimizer_name, self.gating_layer.parameters(), lr=self.gating_lr)
+        self.lr_scheduler_for_gating = get_lr_scheduler(self.opt_for_gating, self.scheduler_name, self.n_rounds, True)
 
     def _get_top_gated_scores(self, x):
         """ Get gating weights via the learned gating layer data-dependently """
