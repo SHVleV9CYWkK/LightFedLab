@@ -28,7 +28,7 @@ class Server(ABC):
         self._init_clients()
         self.optimizer_name = optimizer_name
         try:
-            set_start_method('spawn')
+            set_start_method('forkserver')
         except RuntimeError as e:
             print("Start method 'spawn' already set or error setting it: ", str(e))
 
@@ -68,6 +68,7 @@ class Server(ABC):
         return grad
 
     def _weight_aggregation(self, weights_list):
+        weights_list = weights_list.to(device=self.device)
         datasets_len = self.datasets_len if self.is_all_clients else [client.dataset_len for client in
                                                                       self.selected_clients]
         total_len = sum(datasets_len)
@@ -80,6 +81,7 @@ class Server(ABC):
         self.model.load_state_dict(average_weights)
 
     def _gradient_aggregation(self, weights_list, dataset_len=None):
+        weights_list = weights_list.to(device=self.device)
         # 获取模型参数并确定设备
         global_weights = self.model.state_dict()
 
@@ -130,8 +132,9 @@ class Server(ABC):
                 torch.backends.cudnn.deterministic = True
                 torch.backends.cudnn.benchmark = False
                 torch.cuda.manual_seed_all(seed)
-            client_weights = client.train()
-            return_dict[client.id] = client_weights
+            client_weights = client.train().clone()
+            cloned_weights = {k: v.clone() for k, v in client_weights.items()}  # 克隆每个张量
+            return_dict[client.id] = cloned_weights
         except Exception as e:
             print(f"Error training client {client.id}: {str(e)}")
 
