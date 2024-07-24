@@ -141,7 +141,7 @@ def split_dataset_by_clusters(n_clients, dataset, alpha, n_clusters, test_size, 
     :return: list (size `n_clients`) of subgroups, each subgroup is a list of indices.
     """
 
-    n_classes = len(torch.unique(dataset.targets))
+    n_classes = len(torch.unique(dataset.targets if torch.is_tensor(dataset.targets) else torch.tensor(dataset.targets)))
     if n_clusters == -1:
         n_clusters = n_classes
 
