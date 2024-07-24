@@ -10,3 +10,4 @@ all_data/
 __MACOSX
 __pycache__
 *.h5
+logs_server/

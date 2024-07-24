@@ -4,9 +4,9 @@ from servers.server import Server
 
 
 class FedMaskServer(Server):
-    def __init__(self, clients, model, device, optimizer_name, client_selection_rate=1, server_lr=0.01, n_job=1):
+    def __init__(self, clients, model, device, optimizer_name, seed, client_selection_rate=1, server_lr=0.01, n_job=1):
         self.global_masks = dict()
-        super().__init__(clients, model, device, optimizer_name, client_selection_rate, server_lr, n_job)
+        super().__init__(clients, model, device, optimizer_name, seed, client_selection_rate, server_lr, n_job)
 
     def _init_clients(self):
         print("Initializing clients...")

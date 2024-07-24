@@ -1,6 +1,8 @@
 import os
+import random
 import time
 from datetime import datetime
+import numpy as np
 import torch
 from utils.args import parse_args
 from utils.utils import load_model, load_dataset, get_client_data_indices
@@ -58,10 +60,13 @@ def execute_experiment(args, device):
 if __name__ == '__main__':
     arguments = parse_args()
     torch.manual_seed(arguments.seed)
+    random.seed(arguments.seed)
+    np.random.seed(arguments.seed)
 
     if arguments.device == "cuda" and torch.cuda.is_available():
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+        torch.cuda.manual_seed_all(arguments.seed)
         compute_device = torch.device("cuda")
     elif arguments.device == "mps" and torch.backends.mps.is_available():
         compute_device = torch.device("mps:0")

@@ -1,19 +1,21 @@
 import random
 import time
-
+from copy import deepcopy
+import numpy as np
 import torch
-import torch.multiprocessing as mp
+from torch.multiprocessing import Pool, set_start_method, Manager
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 from utils.utils import get_optimizer
 
 
 class Server(ABC):
-    def __init__(self, clients, model, device, optimizer_name, client_selection_rate=1, server_lr=0.01, n_job=1):
+    def __init__(self, clients, model, device, optimizer_name, seed=0, client_selection_rate=1, server_lr=0.01, n_job=1):
         self.clients = clients
         self.server_lr = server_lr
         self.device = device
         self.n_job = n_job
+        self.seed = seed
         self.client_selection_rate = client_selection_rate
         self.is_all_clients = client_selection_rate == 1
         if self.is_all_clients:
@@ -26,10 +28,9 @@ class Server(ABC):
         self._init_clients()
         self.optimizer_name = optimizer_name
         try:
-            mp.set_start_method('spawn')
+            set_start_method('spawn')
         except RuntimeError as e:
             print("Start method 'spawn' already set or error setting it: ", str(e))
-
 
     @abstractmethod
     def _average_aggregate(self, weights_list):
@@ -72,7 +73,8 @@ class Server(ABC):
         total_len = sum(datasets_len)
         average_weights = {}
         for key in weights_list[0].keys():
-            weighted_sum = sum(weights_list[client_id][key] * len_ for client_id, len_ in zip(weights_list, datasets_len))
+            weighted_sum = sum(weights_list[client_id][key] * len_
+                               for client_id, len_ in zip(weights_list, datasets_len))
             average_weights[key] = weighted_sum / total_len
 
         self.model.load_state_dict(average_weights)
@@ -119,29 +121,38 @@ class Server(ABC):
             self.selected_clients = self.clients
 
     @staticmethod
-    def _execute_train_client(client):
-        client_weights = client.train()
-        return client.id, client_weights
+    def _execute_train_client(client, return_dict, seed):
+        try:
+            torch.manual_seed(seed)
+            random.seed(seed)
+            np.random.seed(seed)
+            if client.device.type == "cuda" and torch.cuda.is_available():
+                torch.backends.cudnn.deterministic = True
+                torch.backends.cudnn.benchmark = False
+                torch.cuda.manual_seed_all(seed)
+            client_weights = client.train()
+            return_dict[client.id] = client_weights
+        except Exception as e:
+            print(f"Error training client {client.id}: {str(e)}")
 
     def _clients_train(self):
         self._sample_clients()
-        if (self.device == 'cuda' or self.device == 'cpu') and self.n_job > 1:
-            processes = []
-            manager = mp.Manager()
+        if (self.device.type == 'cuda' or self.device.type == 'cpu') and self.n_job > 1:
+            manager = Manager()
             return_dict = manager.dict()
 
-            for client in self.selected_clients:
-                p = mp.Process(target=self._execute_train_client, args=(client, return_dict))
-                p.start()
-                processes.append(p)
+            with Pool(processes=self.n_job) as pool:
+                for client in self.selected_clients:
+                    pool.apply_async(self._execute_train_client, args=(client, return_dict, deepcopy(self.seed)))
 
-            with tqdm(total=len(self.selected_clients)) as pbar:
-                while len(return_dict) < len(self.selected_clients):
-                    pbar.update(len(return_dict) - pbar.n)
-                    time.sleep(1)
+                with tqdm(total=len(self.selected_clients)) as pbar:
+                    while len(return_dict) < len(self.selected_clients):
+                        current_length = len(return_dict)
+                        pbar.update(current_length - pbar.n)
+                        time.sleep(1)
 
-            for p in processes:
-                p.join()
+                pool.close()
+                pool.join()
 
             locals_weights = dict(return_dict)
         else:
