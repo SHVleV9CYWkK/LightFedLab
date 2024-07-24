@@ -1,14 +1,11 @@
 import torch
-import torcheval.metrics.functional as metrics
 from clinets.client import Client
-from utils.utils import get_optimizer, get_lr_scheduler
 from models.fedmask.mask_model import MaskedModel
 
 
 class FedMaskClient(Client):
-    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device,
-                 **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device)
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.pruning_rate = kwargs.get('sparse_factor', 0.2)
 
     def receive_mask(self, masks):

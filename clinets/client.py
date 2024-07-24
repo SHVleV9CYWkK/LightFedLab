@@ -8,7 +8,7 @@ from utils.utils import get_optimizer, get_lr_scheduler
 
 
 class Client(ABC):
-    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device):
+    def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, dl_n_job=0):
         self.id = client_id
         self.model = None
         self.criterion = torch.nn.CrossEntropyLoss(reduction="none")
@@ -24,7 +24,7 @@ class Client(ABC):
         self.num_classes = len(full_dataset.classes)
         client_train_dataset = Subset(full_dataset, indices=train_indices)
         client_val_dataset = Subset(full_dataset, indices=val_indices)
-        self.client_train_loader = DataLoader(client_train_dataset, batch_size=hyperparam['bz'],
+        self.client_train_loader = DataLoader(client_train_dataset, batch_size=hyperparam['bz'], num_workers=dl_n_job,
                                               shuffle=False, drop_last=True)
         self.client_val_loader = DataLoader(client_val_dataset, batch_size=hyperparam['bz'],
                                             shuffle=False, drop_last=True)

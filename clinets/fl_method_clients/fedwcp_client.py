@@ -6,7 +6,7 @@ from utils.kmeans import TorchKMeans
 
 class FedWCPClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device)
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 

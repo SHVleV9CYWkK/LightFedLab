@@ -9,7 +9,7 @@ from utils.utils import get_lr_scheduler, get_optimizer
 
 class PFedGateClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device)
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         data_sample, _ = full_dataset[0]
         self.dataset_name = full_dataset.__class__.__name__.lower()
         self.input_feat_size = data_sample.numel()
@@ -85,11 +85,12 @@ class PFedGateClient(Client):
         weight_list = self.gating_layer.block_size_lookup_table[block_idx]
         importance_value_list = importance_value_list[block_idx]
         capacity = torch.round(torch.sum(weight_list) * (self.sparse_factor - self.min_sparse_factor)).int()
-        total_value_of_selected_items, total_weight, selected_item_idx, droped_item_idx = self.knapsack_solver.found_max_value_greedy(
-            weight_list=weight_list.tolist(),
-            value_list=importance_value_list,
-            capacity=capacity
-        )
+        total_value_of_selected_items, total_weight, selected_item_idx, droped_item_idx = (
+            self.knapsack_solver.found_max_value_greedy(
+                weight_list=weight_list.tolist(),
+                value_list=importance_value_list,
+                capacity=capacity
+            ))
 
         droped_item_idx = np.array(block_idx)[droped_item_idx]
         mask[droped_item_idx] *= 0
@@ -139,11 +140,12 @@ class PFedGateClient(Client):
         weight_list = self.gating_layer.block_size_lookup_table[block_idx]
         importance_value_list = importance_value_list[block_idx]
         capacity = torch.sum(weight_list) * (self.sparse_factor - self.min_sparse_factor)
-        total_value_of_selected_items, selected_items_weight, selected_items_frac = self.knapsack_solver.found_max_value(
-            weight_list=weight_list * (1 - self.min_sparse_factor),
-            value_list=importance_value_list,
-            capacity=capacity
-        )
+        total_value_of_selected_items, selected_items_weight, selected_items_frac = (
+            self.knapsack_solver.found_max_value(
+                weight_list=weight_list * (1 - self.min_sparse_factor),
+                value_list=importance_value_list,
+                capacity=capacity
+            ))
         gated_scores_after_select[block_idx] += selected_items_weight / weight_list
 
         return sum(selected_items_weight).detach()
