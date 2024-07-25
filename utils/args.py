@@ -3,7 +3,7 @@ import argparse
 
 def parse_args_for_dataset():
     parser = argparse.ArgumentParser(description="Dataset splitting for federated learning")
-    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist'],
+    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers'],
                         help='dataset name')
     parser.add_argument('--clients_num', type=int, default=10, help='number of clients')
     parser.add_argument('--n_clusters', type=int, default=-1, help='number of clusters using clusters split method')
@@ -50,7 +50,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask'],
                         help='federated learning method')
-    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist'],
+    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers'],
                         help='dataset name')
     parser.add_argument('--model', type=str, default='alexnet', choices=['vgg16', 'resnet18', 'cnn', 'resnet50', 'alexnet', 'leafcnn1', 'lenet'],
                         help='model name')

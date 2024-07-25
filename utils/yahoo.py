@@ -5,9 +5,9 @@ import torch
 
 
 class YahooAnswersDataset(Dataset):
-    def __init__(self, split, tokenizer_name='bert-base-uncased', max_length=512):
+    def __init__(self, split, tokenizer_name='bert-base-uncased', max_length=512, cache_dir=None):
         # Load the dataset from Hugging Face datasets
-        self.dataset = load_dataset("yahoo_answers_topics", split=split)
+        self.dataset = load_dataset("yahoo_answers_topics", split=split, cache_dir=cache_dir)
 
         # Load the tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
@@ -37,13 +37,7 @@ class YahooAnswersDataset(Dataset):
 
         # Convert input_ids and attention_mask to tensors
         input_ids = inputs['input_ids'].squeeze(0)
-        attention_mask = inputs['attention_mask'].squeeze(0)
 
-        # Get the label
-        label = torch.tensor(item['topic'])
+        label = item['topic']
 
-        return {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask,
-            'label': label
-        }
+        return input_ids, label

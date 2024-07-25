@@ -40,7 +40,7 @@ def load_dataset(dataset_name):
         transform = transforms.ToTensor()
         dataset = MNIST(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'yahooanswers':
-        return YahooAnswersDataset(split='train')
+        return YahooAnswersDataset(split='train', cache_dir='./data')
     else:
         raise ValueError(f"dataset_name does not contain {dataset_name}")
     return dataset
