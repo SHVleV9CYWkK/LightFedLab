@@ -147,9 +147,11 @@ class Server(ABC):
                     pool.apply_async(self._execute_train_client, args=(client, return_dict, deepcopy(self.seed)))
 
                 with tqdm(total=len(self.selected_clients)) as pbar:
-                    while len(return_dict) < len(self.selected_clients):
+                    while True:
                         current_length = len(return_dict)
                         pbar.update(current_length - pbar.n)
+                        if current_length >= len(self.selected_clients):
+                            break
                         time.sleep(1)
 
                 pool.close()

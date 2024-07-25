@@ -218,12 +218,12 @@ class PFedGateClient(Client):
         accuracy = metrics.multiclass_accuracy(all_predictions, all_labels, num_classes=self.num_classes)
         # precision = metrics.multiclass_precision(all_predictions, all_labels, num_classes=self.num_classes)
         # recall = metrics.multiclass_recall(all_predictions, all_labels, num_classes=self.num_classes)
-        # f1 = metrics.multiclass_f1_score(all_predictions, all_labels, num_classes=self.num_classes)
+        f1 = metrics.multiclass_f1_score(all_predictions, all_labels, average="weighted", num_classes=self.num_classes)
 
         return {
             'loss': avg_loss,
             'accuracy': accuracy.item(),
             # 'precision': precision.item(),
             # 'recall': recall.item(),
-            # 'f1': f1.item()
+            'f1': f1.item()
         }

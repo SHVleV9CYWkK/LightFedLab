@@ -8,6 +8,8 @@ from utils.args import parse_args
 from utils.utils import load_model, load_dataset, get_client_data_indices
 from clinets.client_factory import ClientFactory
 from servers.server_factory import ServerFactory
+import logging
+logging.getLogger().setLevel(logging.ERROR)
 
 
 def save_log(eval_results, save_log_dir, dataset_name, fl_type):
