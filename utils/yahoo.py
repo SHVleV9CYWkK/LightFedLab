@@ -1,7 +1,6 @@
 from datasets import load_dataset
 from transformers import AutoTokenizer
 from torch.utils.data import Dataset
-import torch
 
 
 class YahooAnswersDataset(Dataset):
