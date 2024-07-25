@@ -4,15 +4,23 @@ from itertools import product
 
 
 def run_and_capture(params):
+    # 打印当前参数配置
+    print(f"Running with parameters: {params}")
+
     # 构建命令行参数
     cmd = ["python", "main.py"]
     for key, value in params.items():
         cmd.extend([f"--{key}", str(value)])
 
-    # 运行命令并捕获输出
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    stdout = result.stdout
-    stderr = result.stderr
+    # 运行命令并实时捕获输出
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    stdout, stderr = process.communicate()
+
+    # 打印子进程的输出
+    print(stdout)
+    if stderr:
+        print(stderr)
+
 
     # 正则表达式匹配准确率
     accuracy_pattern = r"Accuracy: ([0-9.]+)"
