@@ -48,7 +48,7 @@ def parse_args_for_visualization():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask'],
+    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask', 'fedem'],
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers'],
                         help='dataset name')
@@ -66,6 +66,7 @@ def parse_args():
     parser.add_argument('--scheduler_name', type=str, default='reduce_on_plateau', choices=['sqrt', 'linear', 'constant', 'cosine_annealing', 'multi_step', 'reduce_on_plateau'],
                         help='Select the name of the learning rate scheduler')
     parser.add_argument('--sparse_factor', type=float, default=0.5, help='Set the sparsity for the method that requires the sparsity or compression ratio')
+    parser.add_argument('--num_components', type=int, default=2, help='Number of components for FedEM')
     parser.add_argument('--quantization_levels', type=int, default=1, help='The default quantization level for QFedCG')
     parser.add_argument('--is_send_gradients', type=bool, default=False, help='Controls whether the client uploads gradient aggregations, FedCG and QFedCG are not controlled by this parameter.')
     parser.add_argument('--n_job', type=int, default=1, help='The number of processes that execute client training in parallel in the server')

@@ -60,8 +60,5 @@ if __name__ == '__main__':
     for params in param_combinations:
         max_accuracy = run_and_capture(params)
         results.append((params, max_accuracy))
-
-    # 将所有参数组合及其最大准确率保存到文本文件
-    with open("grid_search_results.txt", "a") as file:
-        for params, max_accuracy in results:
+        with open("grid_search_results.txt", "a") as file:
             file.write(f"Params: {params}, Max Accuracy: {max_accuracy}\n")
