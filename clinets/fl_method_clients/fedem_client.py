@@ -95,41 +95,44 @@ class FedEMClient(Client):
                     self.optimizers[m].step()  # 更新模型权重
 
     def evaluate_model(self):
-        # 初始化评估指标
+        # Ensure all learners are in evaluation mode
+        for model in self.models:
+            model.eval()
+
         total_loss = 0
         all_labels = []
         all_predictions = []
 
-        # 设置模型为评估模式
-        for model in self.models:
-            model.eval()
-
         with torch.no_grad():
-            for i, (x, labels) in enumerate(self.client_val_loader):
+            # Iterate over each batch from the validation loader
+            for batch_idx, (x, labels) in enumerate(self.client_val_loader):
                 x, labels = x.to(self.device), labels.to(self.device)
-                start_index = i * self.client_val_loader.batch_size
-                end_index = start_index + x.size(0)
+                first_output = True
 
-                y_pred = torch.zeros((x.size(0), self.num_classes), device=self.device)  # 初始化预测输出
-                cumulative_loss = torch.tensor(0., device=self.device)
+                # Aggregate predictions from each learner
+                for m, model in enumerate(self.models):
+                    output = model(x)
+                    output = F.softmax(output, dim=1)
 
-                for m in range(self.num_components):
-                    outputs = self.models[m](x)
-                    loss = self.criterion(outputs, labels)
-                    q_t_batch = self.q_t[m][start_index:end_index].to(self.device)
+                    # Adjust weights for the current batch
+                    batch_weights = self.q_t[m][batch_idx * len(x):(batch_idx + 1) * len(x)]
 
-                    # 将 loss 扩展到与 q_t_batch 相同的形状
-                    adjusted_loss = loss.expand_as(q_t_batch)  # 使用 expand_as 来匹配 q_t_batch 的形状
+                    if first_output:
+                        outputs = batch_weights.unsqueeze(1) * output
+                        first_output = False
+                    else:
+                        outputs += batch_weights.unsqueeze(1) * output
 
-                    cumulative_loss += q_t_batch * adjusted_loss  # 正确的乘法操作
-                    y_pred += q_t_batch.unsqueeze(1) * outputs  # 确保后验概率维度正确并乘以输出
+                predicted = outputs.max(1)[1]  # Correct prediction extraction for multi-class
+                loss = self.criterion(torch.log(outputs), labels)
+                loss_meta = loss.mean()
+                total_loss += loss_meta.item()
 
-                _, predicted = torch.max(y_pred, 1)
+                # Collect labels and predictions for metric calculations
                 all_labels.append(labels)
                 all_predictions.append(predicted)
-                total_loss += cumulative_loss.sum()  # 累加损失
 
-        # 计算总的平均损失和其他统计信息
+        # Concatenate all labels and predictions
         all_labels = torch.cat(all_labels)
         all_predictions = torch.cat(all_predictions)
 
@@ -138,7 +141,7 @@ class FedEMClient(Client):
         f1 = metrics.multiclass_f1_score(all_predictions, all_labels, average="weighted", num_classes=self.num_classes)
 
         return {
-            'loss': avg_loss.item(),
+            'loss': avg_loss,
             'accuracy': accuracy.item(),
             'f1': f1.item()
         }

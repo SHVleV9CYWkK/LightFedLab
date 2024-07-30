@@ -34,12 +34,11 @@ def run_and_capture(params):
 if __name__ == '__main__':
     # 参数空间
     param_grid = {
-        "fl_method": ["pfedgate"],
+        "fl_method": ["fedem"],
         "dataset_name": ["emnist"],
         "model": ["leafcnn1"],
         "local_epochs": [1],
-        "lr": [1, 0.5, 0.1, 0.05],
-        "gating_lr": [2, 1, 0.5, 0.1],
+        "lr": [0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001],
         "batch_size": [128],
         "n_rounds": [20],
         "seed": [42],
