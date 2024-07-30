@@ -10,7 +10,8 @@ from utils.utils import get_optimizer
 
 
 class Server(ABC):
-    def __init__(self, clients, model, device, optimizer_name, seed=0, client_selection_rate=1, server_lr=0.01, n_job=1):
+    def __init__(self, clients, model, device, optimizer_name, seed=0, client_selection_rate=1, server_lr=0.01,
+                 n_job=1):
         self.clients = clients
         self.server_lr = server_lr
         self.device = device
@@ -120,8 +121,15 @@ class Server(ABC):
         else:
             self.selected_clients = self.clients
 
-    @staticmethod
-    def _execute_train_client(client, return_dict, seed):
+    def _clone_and_detach(self, tensor_dict):
+        if isinstance(tensor_dict, dict):
+            return {k: self._clone_and_detach(v) for k, v in tensor_dict.items()}
+        elif hasattr(tensor_dict, 'clone'):
+            return tensor_dict.clone().detach().to('cpu')
+        else:
+            raise ValueError("Unsupported type for cloning and detaching")
+
+    def _execute_train_client(self, client, return_dict, seed):
         try:
             torch.manual_seed(seed)
             random.seed(seed)
@@ -131,7 +139,7 @@ class Server(ABC):
                 torch.backends.cudnn.benchmark = False
                 torch.cuda.manual_seed_all(seed)
             client_weights = client.train()
-            detached_weights = {k: v.clone().detach().to('cpu') for k, v in client_weights.items()}
+            detached_weights = self._clone_and_detach(client_weights)
             return_dict[client.id] = detached_weights
         except Exception as e:
             print(f"Error training client {client.id}: {str(e)}")
