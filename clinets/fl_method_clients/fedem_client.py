@@ -117,6 +117,9 @@ class FedEMClient(Client):
                     # Adjust weights for the current batch
                     batch_weights = self.q_t[m][batch_idx * len(x):(batch_idx + 1) * len(x)]
 
+                    if isinstance(batch_weights, list):
+                        batch_weights = torch.tensor(batch_weights).to(self.device)
+
                     if first_output:
                         outputs = batch_weights.unsqueeze(1) * output
                         first_output = False
