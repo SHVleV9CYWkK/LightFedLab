@@ -11,7 +11,7 @@ class FedEMClient(Client):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.num_components = hyperparam['num_components']
         # 初始化后验概率和组件权重
-        self.q_t = [[torch.zeros(self.train_dataset_len, device=self.device)] for _ in range(self.num_components)]
+        self.q_t = [torch.zeros(self.train_dataset_len, device=self.device) for _ in range(self.num_components)]
         self.pi_tm = [1.0 / self.num_components for _ in range(self.num_components)]
         self.optimizers = self.lr_schedulers = None
         self.models = [None] * self.num_components
@@ -116,9 +116,6 @@ class FedEMClient(Client):
 
                     # Adjust weights for the current batch
                     batch_weights = self.q_t[m][batch_idx * len(x):(batch_idx + 1) * len(x)]
-
-                    if isinstance(batch_weights, list):
-                        batch_weights = torch.tensor(batch_weights).to(self.device)
 
                     if first_output:
                         outputs = batch_weights.unsqueeze(1) * output
