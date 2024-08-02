@@ -55,9 +55,8 @@ class FedEMClient(Client):
                     loss = self.criterion(output, y)  # 计算批次的损失
                     # 计算并累积后验概率
                     batch_end = batch_start + x.size(0)
-                    q_temp[batch_start:batch_end] = torch.exp(-loss) * self.pi_tm[m]
+                    self.q_t[m, batch_start:batch_end] = torch.exp(-loss) * self.pi_tm[m]
                     batch_start = batch_end
-            self.q_t[m, :] = q_temp
         self.q_t /= self.q_t.sum(dim=0, keepdim=True)
 
     def _m_step(self):
