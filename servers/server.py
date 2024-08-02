@@ -125,7 +125,7 @@ class Server(ABC):
         if isinstance(tensor_dict, dict):
             return {k: self._clone_and_detach(v) for k, v in tensor_dict.items()}
         elif hasattr(tensor_dict, 'clone'):
-            return tensor_dict.clone().detach()
+            return tensor_dict.clone().detach().to('cpu')
         else:
             raise ValueError("Unsupported type for cloning and detaching")
 
