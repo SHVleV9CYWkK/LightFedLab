@@ -10,9 +10,10 @@ class FedEMClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.num_components = hyperparam['num_components']
+        self.actual_train_dataset_len = len(self.client_train_loader.dataset) // hyperparam['bz'] * hyperparam['bz']
         # 初始化后验概率和组件权重
-        self.q_t = [torch.zeros(self.train_dataset_len, device=self.device) for _ in range(self.num_components)]
-        self.pi_tm = [1.0 / self.num_components for _ in range(self.num_components)]
+        self.q_t = torch.zeros((self.num_components, self.actual_train_dataset_len), device=self.device)
+        self.pi_tm = torch.full((self.num_components,), 1.0 / self.num_components, device=self.device)
         self.optimizers = self.lr_schedulers = None
         self.models = [None] * self.num_components
 
@@ -38,18 +39,14 @@ class FedEMClient(Client):
             lr_scheduler.step(global_metric)
 
     def train(self):
-        # E-step和M-step的实现
-        self.e_step()
-        self.m_step()
-
         # 本地训练
         self._local_train()
         return {m: self.models[m].state_dict() for m in range(self.num_components)}
 
-    def e_step(self):
+    def _e_step(self):
         for m in range(self.num_components):
             self.models[m].eval()
-            q_temp = torch.zeros(self.train_dataset_len, device=self.device)
+            q_temp = torch.zeros(self.actual_train_dataset_len, device=self.device)
             batch_start = 0
             with torch.no_grad():
                 for x, y in self.client_train_loader:
@@ -60,17 +57,16 @@ class FedEMClient(Client):
                     batch_end = batch_start + x.size(0)
                     q_temp[batch_start:batch_end] = torch.exp(-loss) * self.pi_tm[m]
                     batch_start = batch_end
-                self.q_t[m] = q_temp
+            self.q_t[m, :] = q_temp
+        self.q_t /= self.q_t.sum(dim=0, keepdim=True)
 
-    def m_step(self):
-        total_q = torch.sum(torch.stack([self.q_t[m_prime] for m_prime in range(self.num_components)]))
-
-        # 更新每个组件的权重
-        for m in range(self.num_components):
-            q_sum = torch.sum(self.q_t[m])
-            self.pi_tm[m] = q_sum / total_q
+    def _m_step(self):
+        pi_new = self.q_t.mean(dim=1)  # 按组件计算平均后验概率
+        self.pi_tm = pi_new / pi_new.sum()  # 确保权重和为1
 
     def _local_train(self):
+        self._e_step()
+        self._m_step()
         for m in range(self.num_components):
             self.models[m].train()
             for epoch in range(self.epochs):
@@ -105,34 +101,28 @@ class FedEMClient(Client):
 
         with torch.no_grad():
             # Iterate over each batch from the validation loader
-            for batch_idx, (x, labels) in enumerate(self.client_val_loader):
+            for i, (x, labels) in enumerate(self.client_val_loader):
                 x, labels = x.to(self.device), labels.to(self.device)
                 first_output = True
 
-                # Aggregate predictions from each learner
                 for m, model in enumerate(self.models):
                     output = model(x)
                     output = F.softmax(output, dim=1)
 
-                    # Adjust weights for the current batch
-                    batch_weights = self.q_t[m][batch_idx * len(x):(batch_idx + 1) * len(x)]
-
                     if first_output:
-                        outputs = batch_weights.unsqueeze(1) * output
+                        outputs = self.pi_tm[m] * output
                         first_output = False
                     else:
-                        outputs += batch_weights.unsqueeze(1) * output
+                        outputs += self.pi_tm[m] * output
 
-                predicted = outputs.max(1)[1]  # Correct prediction extraction for multi-class
+                predicted = outputs.max(1)[1]
                 loss = self.criterion(torch.log(outputs), labels)
                 loss_meta = loss.mean()
                 total_loss += loss_meta.item()
 
-                # Collect labels and predictions for metric calculations
                 all_labels.append(labels)
                 all_predictions.append(predicted)
 
-        # Concatenate all labels and predictions
         all_labels = torch.cat(all_labels)
         all_predictions = torch.cat(all_predictions)
 

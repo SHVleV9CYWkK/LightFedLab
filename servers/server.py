@@ -29,7 +29,7 @@ class Server(ABC):
         self._init_clients()
         self.optimizer_name = optimizer_name
         try:
-            set_start_method('forkserver')
+            set_start_method('spawn')
         except RuntimeError as e:
             print("Start method 'spawn' already set or error setting it: ", str(e))
 
@@ -125,7 +125,7 @@ class Server(ABC):
         if isinstance(tensor_dict, dict):
             return {k: self._clone_and_detach(v) for k, v in tensor_dict.items()}
         elif hasattr(tensor_dict, 'clone'):
-            return tensor_dict.clone().detach().to('cpu')
+            return tensor_dict.clone().detach()
         else:
             raise ValueError("Unsupported type for cloning and detaching")
 

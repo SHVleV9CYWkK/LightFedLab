@@ -38,5 +38,5 @@ def plot_training_results(base_path, result_path=None, metrics=None):
 
 if __name__ == '__main__':
     arguments = parse_args_for_visualization()
-    plot_training_results(arguments.log_dir, arguments.save_dir, ['accuracy', 'loss'])
+    plot_training_results(arguments.log_dir, arguments.save_dir, ['accuracy', 'loss', 'f1'])
 
