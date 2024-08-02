@@ -29,7 +29,7 @@ class Server(ABC):
         self._init_clients()
         self.optimizer_name = optimizer_name
         try:
-            set_start_method('spawn')
+            set_start_method('spawn' if self.device.type == 'cpu' else 'forkserver')
         except RuntimeError as e:
             print("Start method 'spawn' already set or error setting it: ", str(e))
 
