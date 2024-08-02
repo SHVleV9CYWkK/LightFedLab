@@ -11,4 +11,4 @@ __MACOSX
 __pycache__
 *.h5
 logs_server/
-grid_search.txt
+grid_search_results.txt

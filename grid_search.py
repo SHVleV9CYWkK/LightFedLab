@@ -45,7 +45,7 @@ if __name__ == '__main__':
         "device": ["cuda"],
         "split_method": ["clusters"],
         "optimizer_name": ["sgd", "adam"],
-        "n_job": [10]
+        "n_job": [12]
     }
 
     # 生成所有参数组合
