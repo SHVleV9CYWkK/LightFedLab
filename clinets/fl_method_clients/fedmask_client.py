@@ -9,13 +9,18 @@ class FedMaskClient(Client):
         self.pruning_rate = kwargs.get('sparse_factor', 0.2)
 
     def receive_mask(self, masks):
-        mask_names = masks.keys()
+        device = next(self.model.parameters()).device
+        masks = {name: mask.to(device) for name, mask in masks.items()}
+
+        updated_masks = {}
         for name, param in self.model.state_dict().items():
-            if name not in mask_names:
-                masks[name] = param
+            if name not in masks:
+                updated_masks[name] = param
             else:
-                masks[name] = masks[name] * param
-        self.model.load_state_dict(masks)
+                updated_masks[name] = masks[name] * param.to(device)
+
+        self.model.load_state_dict(updated_masks)
+
 
     def train(self):
         self._local_train()
