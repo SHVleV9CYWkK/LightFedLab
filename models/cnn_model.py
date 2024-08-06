@@ -110,8 +110,8 @@ class LeNet(LeafCNN1):
         self.adapted_model_para = {name: None for name, val in self.named_parameters()}
 
     def forward(self, x):
-        x = self.pool(torch.F.relu(self.conv1(x)))
-        x = self.pool(torch.F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
         x = x.view(-1, 2 * self.n_kernels * 5 * 5)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
