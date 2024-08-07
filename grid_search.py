@@ -44,7 +44,7 @@ if __name__ == '__main__':
         "seed": [42],
         "device": ["cuda"],
         "split_method": ["clusters"],
-        "optimizer_name": ["sgd"],
+        "optimizer_name": ["sgd", "adam"],
         "n_job": [12]
     }
 

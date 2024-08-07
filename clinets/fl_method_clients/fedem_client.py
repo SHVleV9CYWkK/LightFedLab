@@ -11,7 +11,6 @@ class FedEMClient(Client):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.num_components = hyperparam['num_components']
         self.actual_train_dataset_len = len(self.client_train_loader.dataset) // hyperparam['bz'] * hyperparam['bz']
-        # 初始化后验概率和组件权重
         self.q_t = torch.zeros((self.num_components, self.actual_train_dataset_len), device=self.device)
         self.pi_tm = torch.full((self.num_components,), 1.0 / self.num_components, device=self.device)
         self.optimizers = self.lr_schedulers = None
@@ -106,7 +105,6 @@ class FedEMClient(Client):
 
                 for m, model in enumerate(self.models):
                     output = model(x)
-                    output = F.softmax(output, dim=1)
 
                     if first_output:
                         outputs = self.pi_tm[m] * output
@@ -115,7 +113,7 @@ class FedEMClient(Client):
                         outputs += self.pi_tm[m] * output
 
                 predicted = outputs.max(1)[1]
-                loss = self.criterion(torch.log(outputs), labels)
+                loss = self.criterion(outputs, labels)
                 loss_meta = loss.mean()
                 total_loss += loss_meta.item()
 

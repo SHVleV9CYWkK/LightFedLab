@@ -52,7 +52,7 @@ def parse_args():
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers'],
                         help='dataset name')
-    parser.add_argument('--model', type=str, default='alexnet', choices=['vgg16', 'resnet18', 'cnn', 'resnet50', 'alexnet', 'leafcnn1', 'lenet'],
+    parser.add_argument('--model', type=str, default='alexnet', choices=['vgg16', 'resnet18', 'cnn', 'resnet50', 'alexnet', 'leafcnn1', 'lenet', 'mobilebart'],
                         help='model name')
     parser.add_argument('--optimizer_name', type=str, default='adam', choices=['sgd', 'adam', 'adamw'],
                         help='The name of the optimizer used')

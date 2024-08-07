@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 
 
 class YahooAnswersDataset(Dataset):
-    def __init__(self, split, tokenizer_name='bert-base-uncased', max_length=512, cache_dir=None):
+    def __init__(self, split, tokenizer_name="lordtt13/emo-mobilebert", max_length=512, cache_dir=None):
         # Load the dataset from Hugging Face datasets
         self.dataset = load_dataset("yahoo_answers_topics", split=split, cache_dir=cache_dir)
 

@@ -4,7 +4,7 @@ from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from utils.yahoo import YahooAnswersDataset
 from torchvision import transforms
 from torchvision.models import vgg16, resnet18, alexnet, resnet50
-from transformers import BartForSequenceClassification
+from transformers import MobileBertForSequenceClassification
 from torch import nn
 import torch.optim as optim
 
@@ -65,8 +65,17 @@ def load_model(model_name, num_classes):
         model = LeafCNN1(num_classes)
     elif model_name == 'lenet':
         model = LeNet(num_classes)
-    elif model_name == 'bart':
-        model = BartForSequenceClassification.from_pretrained('facebook/bart-large', num_labels=num_classes)
+    elif model_name == 'mobilebart':
+        model = MobileBertForSequenceClassification.from_pretrained("lordtt13/emo-mobilebert",
+                                                                    num_labels=num_classes,
+                                                                    ignore_mismatched_sizes=True)
+        original_forward = model.forward
+
+        def forward_with_logits_only(*args, **kwargs):
+            outputs = original_forward(*args, **kwargs)
+            return outputs.logits
+
+        model.forward = forward_with_logits_only
     else:
         raise ValueError(f"model_name does not contain {model_name}")
     return model

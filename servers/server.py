@@ -28,10 +28,11 @@ class Server(ABC):
         self._distribute_model()
         self._init_clients()
         self.optimizer_name = optimizer_name
-        try:
-            set_start_method('spawn')
-        except RuntimeError as e:
-            print("Start method 'spawn' already set or error setting it: ", str(e))
+        if (self.device.type == 'cuda' or self.device.type == 'cpu') and self.n_job > 1:
+            try:
+                set_start_method('spawn')
+            except RuntimeError as e:
+                print("Start method 'spawn' already set or error setting it: ", str(e))
 
     @abstractmethod
     def _average_aggregate(self, weights_list):
