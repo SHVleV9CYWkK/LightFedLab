@@ -9,3 +9,4 @@ transformers
 datasets
 cchardet
 tqdm
+cvxpy

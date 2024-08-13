@@ -21,7 +21,7 @@ class AdFedWCPClient(FedWCPClient):
         pass
 
     def assign_num_centroids_to_interlayers(self, k):
-        for key, weight in self.model.state_dict().items():
+        for key, weight in self.global_model.state_dict().items():
             if 'weight' in key:
                 self.num_centroids[key] = k
                 self.layer_importance[key] = 1

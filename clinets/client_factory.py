@@ -3,6 +3,7 @@ from clinets.fl_method_clients.fedcg_client import FedCGClient
 from clinets.fl_method_clients.fedmask_client import FedMaskClient
 from clinets.fl_method_clients.qfedcg_client import QFedCGClient
 from clinets.fl_method_clients.fedwcp_client import FedWCPClient
+from clinets.fl_method_clients.adfedwcp_client import AdFedWCPClient
 from clinets.fl_method_clients.pfedgate_client import PFedGateClient
 from clinets.fl_method_clients.fedem_client import FedEMClient
 
@@ -35,6 +36,8 @@ class ClientFactory:
         elif fl_type == 'fedem':
             client_prototype = FedEMClient
             train_hyperparam['num_components'] = args.num_components
+        elif fl_type == 'adfedwcp':
+            client_prototype = AdFedWCPClient
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
