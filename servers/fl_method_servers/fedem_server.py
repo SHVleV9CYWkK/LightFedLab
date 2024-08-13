@@ -14,7 +14,7 @@ class FedEMServer(Server):
             client.receive_model(self.models)
 
     def _average_aggregate(self, weights_list):
-        datasets_len = self.datasets_len if self.is_all_clients else [client.dataset_len for client in
+        datasets_len = self.datasets_len if self.is_all_clients else [client.datasets_len for client in
                                                                       self.selected_clients]
         total_len = sum(datasets_len)
 

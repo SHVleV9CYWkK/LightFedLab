@@ -28,7 +28,9 @@ class Client(ABC):
         client_val_dataset = Subset(full_dataset, indices=val_indices)
         self.client_train_loader = DataLoader(client_train_dataset, batch_size=hyperparam['bz'], num_workers=dl_n_job,
                                               shuffle=False, drop_last=True)
-        self.client_val_loader = DataLoader(client_val_dataset, batch_size=hyperparam['bz'],
+        self.client_val_loader = DataLoader(client_val_dataset,
+                                            batch_size=hyperparam['bz']
+                                            if hyperparam['bz'] <= len(client_val_dataset) else len(client_val_dataset),
                                             shuffle=False, drop_last=True)
         self.global_metric = self.global_epoch = 0
         self.lr_scheduler = None

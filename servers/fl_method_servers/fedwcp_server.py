@@ -1,5 +1,3 @@
-from tqdm import tqdm
-
 from servers.server import Server
 
 
