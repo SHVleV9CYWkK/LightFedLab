@@ -10,15 +10,14 @@ from utils.utils import get_optimizer
 
 
 class Server(ABC):
-    def __init__(self, clients, model, device, optimizer_name, seed=0, client_selection_rate=1, server_lr=0.01,
-                 n_job=1):
+    def __init__(self, clients, model, device, args):
         self.clients = clients
-        self.server_lr = server_lr
+        self.server_lr = args['server_lr']
         self.device = device
-        self.n_job = n_job
-        self.seed = seed
-        self.client_selection_rate = client_selection_rate
-        self.is_all_clients = client_selection_rate == 1
+        self.n_job = args['n_job']
+        self.seed = args['seed']
+        self.client_selection_rate = args['client_selection_rate']
+        self.is_all_clients = self.client_selection_rate == 1
         if self.is_all_clients:
             self.selected_clients = clients
         else:
@@ -27,7 +26,7 @@ class Server(ABC):
         self.datasets_len = [client.train_dataset_len for client in self.clients]
         self._distribute_model()
         self._init_clients()
-        self.optimizer_name = optimizer_name
+        self.optimizer_name = args['optimizer_name']
         if (self.device.type == 'cuda' or self.device.type == 'cpu') and self.n_job > 1:
             try:
                 set_start_method('spawn')

@@ -6,8 +6,13 @@ from servers.fl_method_servers.fedwcp_server import FedWCPServer
 
 
 class AdFedWCPServer(FedWCPServer):
-    def __init__(self, clients, model, device, optimizer_name, seed, client_selection_rate=1, server_lr=0.01, n_job=1):
-        super().__init__(clients, model, device, optimizer_name, seed, client_selection_rate, server_lr, n_job)
+    def __init__(self, clients, model, device, args):
+        super().__init__(clients, model, device, args)
+        self.n_rounds = args.n_rounds
+        self.current_rounds = 0
+        self.avg_loss_change = float('inf')
+        self.last_loss = 0
+
         self.k_min = 5
         self.k_max = 32
         self.datasets_len = {}
@@ -78,10 +83,16 @@ class AdFedWCPServer(FedWCPServer):
         else:
             return k.value
 
-    def train(self):
-        super().train()
+    def evaluate(self):
+        result = super().evaluate()
+        current_loss = result['loss']
+        alpha = 0.5
         print("Calculating k...")
-        k_list = self.determine_k()
+        if self.current_rounds == 0:
+            self.last_loss = current_loss
+        else:
+            self.avg_loss_change = alpha * (abs(current_loss - self.last_loss)) + (1 - alpha) * self.avg_loss_change   # EMA
+        k_list = self.determine_k(self.current_rounds, self.n_rounds, self.avg_loss_change)
         for idx, k in enumerate(k_list):
             self.clients[idx].set_num_centroids(k)
-
+        return result

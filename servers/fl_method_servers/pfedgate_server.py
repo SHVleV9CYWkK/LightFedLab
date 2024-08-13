@@ -3,10 +3,10 @@ from servers.server import Server
 
 
 class PFedGateServer(Server):
-    def __init__(self, clients, model, device, optimizer_name, seed, client_selection_rate=1, server_lr=0.01, n_job=1):
+    def __init__(self, clients, model, device, args):
         if not isinstance(model, LeafCNN1):
             raise TypeError("The model must be a LeafCNN1 class or subclass")
-        super().__init__(clients, model, device, optimizer_name, seed, client_selection_rate, server_lr, n_job)
+        super().__init__(clients, model, device, args)
         for client in clients:
             client.init_gating_layer()
 

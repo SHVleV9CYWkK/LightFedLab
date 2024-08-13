@@ -1,3 +1,4 @@
+from servers.fl_method_servers.adfedwcp_server import AdFedWCPServer
 from servers.fl_method_servers.fedavg_server import FedAvgServer
 from servers.fl_method_servers.fedcg_server import FedCGServer
 from servers.fl_method_servers.fedmask_server import FedMaskServer
@@ -9,6 +10,14 @@ from servers.fl_method_servers.fedem_server import FedEMServer
 
 class ServerFactory:
     def create_server(self, args, clients, model, device):
+        param = {
+            'server_lr': args.server_lr,
+            'n_job': args.n_job,
+            'seed': args.seed,
+            'client_selection_rate': args.client_selection_rate,
+            'optimizer_name': args.optimizer_name,
+        }
+
         fl_type = args.fl_method
         if fl_type == 'fedavg':
             server_prototype = FedAvgServer
@@ -24,7 +33,10 @@ class ServerFactory:
             server_prototype = FedMaskServer
         elif fl_type == 'fedem':
             server_prototype = FedEMServer
+        elif fl_type == 'adfedwcp':
+            server_prototype = AdFedWCPServer
+            param['n_rounds'] = args.n_rounds
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
-        return server_prototype(clients, model, device, args.optimizer_name, args.seed, args.client_selection_rate, args.server_lr, args.n_job)
+        return server_prototype(clients, model, device, param)

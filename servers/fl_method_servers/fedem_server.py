@@ -4,10 +4,10 @@ from servers.server import Server
 
 
 class FedEMServer(Server):
-    def __init__(self, clients, model, device, optimizer_name, seed, client_selection_rate=1, server_lr=0.01, n_job=1):
+    def __init__(self, clients, model, device, args):
         self.num_components = clients[0].num_components
         self.models = [copy.deepcopy(model) for _ in range(self.num_components)]
-        super().__init__(clients, model, device, optimizer_name, seed, client_selection_rate, server_lr, n_job)
+        super().__init__(clients, model, device, args)
 
     def _distribute_model(self):
         for client in self.clients:
