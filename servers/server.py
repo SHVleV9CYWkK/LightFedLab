@@ -178,6 +178,7 @@ class Server(ABC):
         return locals_weights
 
     def train(self):
+        print("Training models...")
         clients_weights = self._clients_train()
         print("Aggregating models...")
         self._average_aggregate(clients_weights)

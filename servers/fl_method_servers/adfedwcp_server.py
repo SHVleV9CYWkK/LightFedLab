@@ -11,7 +11,7 @@ class AdFedWCPServer(FedWCPServer):
         self.current_rounds = 0
         self.avg_loss_change = float('inf')
         self.last_loss = self.current_loss = 0
-
+        self.last_k_value = None
         self.k_min = 5
         self.k_max = 32
         self.datasets_len = {}
@@ -26,8 +26,8 @@ class AdFedWCPServer(FedWCPServer):
                 self.max_dataset_len = self.datasets_len[client.id]
             if self.datasets_len[client.id] < self.min_dataset_len:
                 self.min_dataset_len = self.datasets_len[client.id]
-        self.data_volume_scale_factor = (self.k_max - self.k_min) / (
-                self.max_dataset_len * 1.5 - self.min_dataset_len / 1.5)
+        self.data_volume_scale_factor = (self.k_max*2 - self.k_min) / (
+                self.max_dataset_len * - self.min_dataset_len)
 
         self.bandwidth_min = 5
         self.bandwidth_max = 100
@@ -37,11 +37,11 @@ class AdFedWCPServer(FedWCPServer):
             self.bandwidths[client] = math.ceil(
                 self.bandwidth_min + normalized_size * (self.bandwidth_max - self.bandwidth_min))
 
-        self.bandwidth_scale_factor = (self.k_max - self.k_min) / (self.bandwidth_max * 1.5 - self.bandwidth_min / 1.5)
+        self.bandwidth_scale_factor = (self.k_max - self.k_min) / (self.bandwidth_max * 3 - self.bandwidth_min / 1.5)
 
         super().__init__(clients, model, device, args)
 
-    def k_lower_bound(self, data_volume, current_epoch, total_epochs, avg_loss_change=1):
+    def k_lower_bound(self, data_volume, current_epoch, total_epochs, avg_loss_change=1.0):
         base_k = self.k_min + math.ceil((data_volume - self.min_dataset_len) * self.data_volume_scale_factor)
 
         # 考虑训练进度，越接近结束，可能希望k值越大
@@ -65,7 +65,7 @@ class AdFedWCPServer(FedWCPServer):
     def compression_rate(k):
         return 0.00395 * k + 0.07567  # 近似线性函数
 
-    def determine_k(self, current_epoch, total_epochs, avg_loss_change=1):
+    def determine_k(self, current_epoch, total_epochs, avg_loss_change=1.0):
         # 优化变量
         k = cp.Variable(len(self.clients), integer=True)
         # 目标函数：最小化通信成本
@@ -83,8 +83,10 @@ class AdFedWCPServer(FedWCPServer):
         problem.solve()
 
         if problem.status in ["infeasible", "unbounded"]:
-            raise Exception("Infeasible or unbounded")
+            print("Infeasible")
+            return self.last_k_value
         else:
+            self.last_k_value = k.value
             return k.value
 
     def abc(self):

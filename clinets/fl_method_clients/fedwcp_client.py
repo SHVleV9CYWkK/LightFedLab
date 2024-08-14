@@ -25,7 +25,7 @@ class FedWCPClient(Client):
         for key, weight in self.model.state_dict().items():
             if 'weight' in key:
                 original_shape = weight.shape
-                kmeans = TorchKMeans(n_clusters=16, is_sparse=True)
+                kmeans = TorchKMeans(n_clusters=8, is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)
                 kmeans.fit(flattened_weights)
 
