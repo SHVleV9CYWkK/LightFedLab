@@ -26,8 +26,8 @@ class AdFedWCPServer(FedWCPServer):
                 self.max_dataset_len = self.datasets_len[client.id]
             if self.datasets_len[client.id] < self.min_dataset_len:
                 self.min_dataset_len = self.datasets_len[client.id]
-        self.data_volume_scale_factor = (self.k_max*2 - self.k_min) / (
-                self.max_dataset_len * - self.min_dataset_len)
+        self.data_volume_scale_factor = (self.k_max - self.k_min) / (
+                self.max_dataset_len * 3 - self.min_dataset_len / 1.5)
 
         self.bandwidth_min = 5
         self.bandwidth_max = 100
