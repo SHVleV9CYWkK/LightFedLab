@@ -92,8 +92,7 @@ class AdFedWCPClient(FedWCPClient):
         layer_importance = self.compute_layer_importance()
 
         importance_values = np.array(list(layer_importance.values()))
-        temperature = 1
-        exp_values = np.exp(importance_values / temperature)
+        exp_values = np.exp(importance_values)
         softmax_values = exp_values / np.sum(exp_values)
 
         self.layer_importance_weights = softmax_values
