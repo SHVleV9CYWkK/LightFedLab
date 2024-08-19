@@ -47,14 +47,6 @@ class FedWCPClient(Client):
             difference_dict[key] = local_dict[key] - global_dict[key]
         return difference_dict
 
-    def _compute_sparse_refined_regularization(self):
-        regularization_terms = {}
-        new_clustered_dict = self.new_clustered_model_state_dict
-        for name, param in self.preclustered_model_state_dict.items():
-            if 'weight' in name:
-                regularization_terms[name] = self.reg_lambda * (param.data - new_clustered_dict[name])
-        return regularization_terms
-
     def _prune_model_weights(self):
         pruned_state_dict = {}
         for key, weight in self.model.state_dict().items():
@@ -66,7 +58,6 @@ class FedWCPClient(Client):
 
     def train(self):
         ref_momentum = self._compute_global_local_model_difference()
-        # regularization_terms = self._compute_sparse_refined_regularization()
 
         self.model.train()
         base_decay_rate = 0.5
@@ -97,8 +88,6 @@ class FedWCPClient(Client):
                 for name, param in self.model.named_parameters():
                     if name in ref_momentum:
                         param.grad += decay_factor * ref_momentum[name]
-                        # if 'weight' in name:
-                        #     param.grad += regularization_terms[name]
 
                 self.optimizer.step()
 
