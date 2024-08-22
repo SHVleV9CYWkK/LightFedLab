@@ -1,5 +1,7 @@
 import math
-import cvxpy as cp
+import time
+import torch
+import torch.optim as optim
 from servers.fl_method_servers.fedwcp_server import FedWCPServer
 
 
@@ -67,52 +69,50 @@ class AdFedWCPServer(FedWCPServer):
                                      min(self.k_max, math.ceil(adjusted_k_lower_bound * progress_factor * loss_factor)))
         adjusted_k_upper_bound = max(self.k_min, min(self.k_max, adjusted_k_upper_bound))
 
-        return [
-            k >= adjusted_k_lower_bound,
-            k <= adjusted_k_upper_bound
-        ]
+        return adjusted_k_lower_bound, adjusted_k_upper_bound
 
     @staticmethod
     def compression_rate(k):
-        return 0.00395 * k + 0.07567  # 近似线性函数
+        return 0.046985 * torch.log(k) + 0.008387   # 近似对数函数
 
     def determine_k(self, current_epoch, avg_loss_change=1.0):
-        # 优化变量
-        k = cp.Variable((len(self.clients), len(self.clients[0].layer_importance_weights)), integer=True)
-        # 目标函数：最小化通信成本
-        objective_terms = []
-        for i, client in enumerate(self.clients):
-            # 对于每个客户端，计算每一层的目标函数值
-            for j in range(len(client.layer_importance_weights)):
-                objective_terms.append((self.compression_rate(k[i, j]) * self.weight_layer_sizes[j]
-                                        + self.bias_layer_sizes[j]) / self.bandwidths[i])
-        objective = cp.Minimize(cp.sum(objective_terms))
+        k = torch.nn.Parameter(torch.randint(self.k_min, self.k_max, (len(self.clients),
+                                                                      len(self.clients[0].layer_importance_weights)),
+                                             dtype=torch.float32))
+        optimizer = optim.Adam([k], lr=0.05)
 
-        # 约束条件列表 最大最小上下边界
-        constraints = []
-        for i, client in enumerate(self.clients):
-            for j in range(len(client.layer_importance_weights)):
-                constraints += self.interlayers_k_constraints(k[i, j],
-                                                              current_epoch,
-                                                              self.datasets_len[client.id],
-                                                              self.bandwidths[client.id],
-                                                              client.layer_importance_weights[j],
-                                                              avg_loss_change)
+        for _ in range(1000):
+            optimizer.zero_grad()
 
-        # 定义和求解问题
-        problem = cp.Problem(objective, constraints)
-        problem.solve(solver=cp.GLPK_MI)
+            objective_terms = []
+            for i, client in enumerate(self.clients):
+                for j in range(len(client.layer_importance_weights)):
+                    objective_terms.append(
+                        (self.compression_rate(k[i, j]) * self.weight_layer_sizes[j]
+                         + self.bias_layer_sizes[j]) / self.bandwidths[i]
+                    )
 
-        if problem.status in ["infeasible", "unbounded"]:
-            print("Infeasible")
-            return self.last_k_value
-        else:
-            self.last_k_value = k.value
-            return k.value
+            loss = torch.sum(torch.stack(objective_terms))
+            loss.backward()
+            optimizer.step()
+
+            with torch.no_grad():
+                for i, client in enumerate(self.clients):
+                    for j in range(len(client.layer_importance_weights)):
+                        lower_bound, upper_bound = self.interlayers_k_constraints(k[i, j],
+                                                                                  current_epoch,
+                                                                                  self.datasets_len[client.id],
+                                                                                  self.bandwidths[client.id],
+                                                                                  client.layer_importance_weights[j],
+                                                                                  avg_loss_change)
+                        k[i, j].clamp_(lower_bound, upper_bound)
+
+        return k.detach().round().int().numpy()
 
     def calculate_k(self):
         alpha = 0.5
         print("Calculating k...")
+        start_time = time.time()
         if self.current_rounds == 0:
             k_lists = self.determine_k(self.current_rounds)
         else:
@@ -120,6 +120,7 @@ class AdFedWCPServer(FedWCPServer):
                     1 - alpha) * self.avg_loss_change  # EMA
             k_lists = self.determine_k(self.current_rounds, self.avg_loss_change)
         print(k_lists)
+        print(f"Calculate layer importance time: {time.time() - start_time}s")
         for idx, k_list in enumerate(k_lists):
             self.clients[idx].assign_num_centroids(k_list)
         self.last_loss = self.current_loss
