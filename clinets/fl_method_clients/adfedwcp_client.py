@@ -72,7 +72,7 @@ class AdFedWCPClient(FedWCPClient):
                     layer_accuracies[name] += accuracy.item()
                     layer_counts[name] += 1
                 else:
-                    layer_accuracies[name] = accuracy.iten()
+                    layer_accuracies[name] = accuracy.item()
                     layer_counts[name] = 1
 
         # 计算每层的平均准确率

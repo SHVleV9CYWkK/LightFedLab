@@ -34,7 +34,7 @@ def run_and_capture(params):
 if __name__ == '__main__':
     # 参数空间
     param_grid = {
-        "fl_method": ["adfedmask"],
+        "fl_method": ["adfedwcp"],
         "dataset_name": ["emnist"],
         "model": ["leafcnn1"],
         "local_epochs": [1],
@@ -64,8 +64,8 @@ if __name__ == '__main__':
 
     # 参数空间
     param_grid = {
-        "fl_method": ["adfedmask"],
-        "dataset_name": ["cifa10"],
+        "fl_method": ["adfedwcp"],
+        "dataset_name": ["cifar10"],
         "model": ["lenet"],
         "local_epochs": [1],
         "lr": [0.005, 0.001, 0.0005, 0.0001],

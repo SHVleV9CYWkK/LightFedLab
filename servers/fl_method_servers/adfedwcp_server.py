@@ -1,4 +1,5 @@
 import math
+import random
 import time
 import torch
 import torch.optim as optim
@@ -36,11 +37,13 @@ class AdFedWCPServer(FedWCPServer):
 
         self.bandwidth_min = 5
         self.bandwidth_max = 100
-        self.bandwidths = [10] * len(clients)
-        for client, dataset_len in self.datasets_len.items():
-            normalized_size = (dataset_len - self.min_dataset_len) / (self.max_dataset_len - self.min_dataset_len)
-            self.bandwidths[client] = math.ceil(
-                self.bandwidth_min + normalized_size * (self.bandwidth_max - self.bandwidth_min))
+        mean_bandwidth = (self.bandwidth_max + self.bandwidth_min) / 2
+        std_bandwidth = (self.bandwidth_max - self.bandwidth_min) / 6
+        self.bandwidths = [max(self.bandwidth_min, min(self.bandwidth_max,
+                                                       round(random.normalvariate(mean_bandwidth, std_bandwidth))))
+                           for _ in range(len(clients))]
+
+        print(f"The bandwidth of the clients is: {self.bandwidths}")
 
         self.bandwidth_scale_factor = (self.k_max - self.k_min) / (self.bandwidth_max - self.bandwidth_min)
 
