@@ -55,24 +55,24 @@ class AdFedWCPClient(FedWCPClient):
             outputs = self.get_all_layer_outputs(x)
 
             for name, output in outputs.items():
-                # num_channels = output.size(1)
-                # embedding_length = self.calculate_embedding_length(output)
-                # imprint_clf = ImprintClassifier(num_channels, self.num_classes, embedding_length, device=self.device)
-                # if output.dim() == 4:
-                #     imprint_clf.imprint_weights(output, labels)  # 对卷积层输出应用池化并计算权重
-                # else:
-                #     imprint_clf.imprint_weights(output.view(output.size(0), -1, 1, 1), labels)  # 全连接层的处理
-                #
-                # logits = imprint_clf(output)
-                # _, predicted = torch.max(logits, 1)
-                # correct = (predicted == labels).float().sum()
-                # accuracy = correct / labels.size(0)
+                num_channels = output.size(1)
+                embedding_length = self.calculate_embedding_length(output)
+                imprint_clf = ImprintClassifier(num_channels, self.num_classes, embedding_length, device=self.device)
+                if output.dim() == 4:
+                    imprint_clf.imprint_weights(output, labels)  # 对卷积层输出应用池化并计算权重
+                else:
+                    imprint_clf.imprint_weights(output.view(output.size(0), -1, 1, 1), labels)  # 全连接层的处理
+
+                logits = imprint_clf(output)
+                _, predicted = torch.max(logits, 1)
+                correct = (predicted == labels).float().sum()
+                accuracy = correct / labels.size(0)
 
                 if name in layer_accuracies:
-                    layer_accuracies[name] += 1
+                    layer_accuracies[name] += accuracy.item()
                     layer_counts[name] += 1
                 else:
-                    layer_accuracies[name] = 1
+                    layer_accuracies[name] = accuracy.iten()
                     layer_counts[name] = 1
 
         # 计算每层的平均准确率
