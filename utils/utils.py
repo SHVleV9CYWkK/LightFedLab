@@ -3,12 +3,10 @@ import numpy as np
 from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from utils.yahoo import YahooAnswersDataset
 from torchvision import transforms
-from torchvision.models import vgg16, resnet18, alexnet, resnet50
 from transformers import MobileBertForSequenceClassification
-from torch import nn
 import torch.optim as optim
 
-from models.cnn_model import CNNModel, LeafCNN1, LeNet
+from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet
 
 
 def load_dataset(dataset_name):
@@ -47,18 +45,8 @@ def load_dataset(dataset_name):
 
 
 def load_model(model_name, num_classes):
-    if model_name == 'vgg16':
-        model = vgg16(weights="VGG16_Weights.IMAGENET1K_V1")
-        model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
-    elif model_name == 'alexnet':
-        model = alexnet(weights="AlexNet_Weights.IMAGENET1K_V1")
-        model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
-    elif model_name == 'resnet18':
-        model = resnet18(weights="ResNet18_Weights.IMAGENET1K_V1")
-        model.fc = nn.Linear(model.fc.in_features, num_classes)
-    elif model_name == 'resnet50':
-        model = resnet50(weights="ResNet50_Weights.IMAGENET1K_V1")
-        model.fc = nn.Linear(model.fc.in_features, num_classes)
+    if model_name == 'alexnet':
+        model = AlexNet(num_classes)
     elif model_name == 'cnn':
         model = CNNModel(num_classes)
     elif model_name == 'leafcnn1':

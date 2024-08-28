@@ -37,7 +37,7 @@ class Client(ABC):
 
     @abstractmethod
     def train(self):
-        pass
+        raise NotImplementedError
 
     def _local_train(self):
         self.model.train()

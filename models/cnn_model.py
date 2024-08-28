@@ -1,4 +1,6 @@
+from abc import ABC, abstractmethod
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 
@@ -22,7 +24,25 @@ class CNNModel(torch.nn.Module):
         return x
 
 
-class LeafCNN1(torch.nn.Module):
+class AdaptedModel(ABC):
+    def __init__(self):
+        super(AdaptedModel).__init__()
+
+    @abstractmethod
+    def adapted_forward(self, x):
+        raise NotImplementedError
+
+    def set_adapted_para(self, name, val):
+        self.adapted_model_para[name] = val
+
+    def del_adapted_para(self):
+        for key, val in self.adapted_model_para.items():
+            if self.adapted_model_para[key] is not None:
+                self.adapted_model_para[key].grad = None
+                self.adapted_model_para[key] = None
+
+
+class LeafCNN1(torch.nn.Module, AdaptedModel):
     """
     Implements a model with two convolutional layers followed by pooling, and a final dense layer with 2048 units.
     Same architecture used for FEMNIST in "LEAF: A Benchmark for Federated Settings"__
@@ -66,15 +86,6 @@ class LeafCNN1(torch.nn.Module):
             x, weight=self.adapted_model_para["output.weight"], bias=self.adapted_model_para["output.bias"]))
         return x
 
-    def set_adapted_para(self, name, val):
-        self.adapted_model_para[name] = val
-
-    def del_adapted_para(self):
-        for key, val in self.adapted_model_para.items():
-            if self.adapted_model_para[key] is not None:
-                self.adapted_model_para[key].grad = None
-                self.adapted_model_para[key] = None
-
 
 class LeNet(LeafCNN1):
     """
@@ -107,7 +118,6 @@ class LeNet(LeafCNN1):
         # adapted_model_para is used to make self-model a non-leaf computational graph,
         # such that other trainable components using self-model can track the grad passing self-model,
         # e.g. a gating layer that changes the weights of self-model
-        self.adapted_model_para = {name: None for name, val in self.named_parameters()}
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -131,4 +141,68 @@ class LeNet(LeafCNN1):
             x, weight=self.adapted_model_para["fc2.weight"], bias=self.adapted_model_para["fc2.bias"]))
         x = F.relu(F.linear(
             x, weight=self.adapted_model_para["output.weight"], bias=self.adapted_model_para["output.bias"]))
+        return x
+
+
+class AlexNet(torch.nn.Module, AdaptedModel):
+    def __init__(self, num_classes):
+        super(AlexNet, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, 192, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(192, 384, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+        self.classifier = nn.Sequential(
+            nn.Dropout(),
+            nn.Linear(256 * 4 * 4, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            nn.Linear(4096, num_classes),
+        )
+
+        self.adapted_model_para = {name: None for name, _ in self.named_parameters()}
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
+
+    def adapted_forward(self, x):
+        x = F.relu(self.features[0]._conv_forward(
+            x, weight=self.adapted_model_para["features.0.weight"], bias=self.adapted_model_para["features.0.bias"]))
+        x = self.features[2](x)
+        x = F.relu(self.features[3]._conv_forward(
+            x, weight=self.adapted_model_para["features.3.weight"], bias=self.adapted_model_para["features.3.bias"]))
+        x = self.features[5](x)
+        x = F.relu(self.features[6]._conv_forward(
+            x, weight=self.adapted_model_para["features.6.weight"], bias=self.adapted_model_para["features.6.bias"]))
+        x = F.relu(self.features[8]._conv_forward(
+            x, weight=self.adapted_model_para["features.8.weight"], bias=self.adapted_model_para["features.8.bias"]))
+        x = F.relu(self.features[10]._conv_forward(
+            x, weight=self.adapted_model_para["features.10.weight"], bias=self.adapted_model_para["features.10.bias"]))
+        x = self.features[12](x)
+
+        x = torch.flatten(x, 1)
+        x = F.relu(F.linear(
+            x, weight=self.adapted_model_para["classifier.1.weight"],
+            bias=self.adapted_model_para["classifier.1.bias"]))
+        x = F.relu(F.linear(
+            x, weight=self.adapted_model_para["classifier.4.weight"],
+            bias=self.adapted_model_para["classifier.4.bias"]))
+        x = F.linear(
+            x, weight=self.adapted_model_para["classifier.6.weight"], bias=self.adapted_model_para["classifier.6.bias"])
+
         return x
