@@ -1,5 +1,5 @@
 import torch
-from clinets.client import Client
+from clients.client import Client
 
 
 class FedCGClient(Client):

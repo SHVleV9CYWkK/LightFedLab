@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torcheval.metrics.functional as metrics
-from clinets.client import Client
+from clients.client import Client
 from models.pfedgate.gating_layers import GatingLayer
 from models.pfedgate.knapsack_solver import KnapsackSolver01
 from utils.utils import get_lr_scheduler, get_optimizer

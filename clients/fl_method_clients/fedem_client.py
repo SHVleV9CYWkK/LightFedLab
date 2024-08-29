@@ -1,5 +1,5 @@
 from copy import deepcopy
-from clinets.client import Client
+from clients.client import Client
 import torch
 import torcheval.metrics.functional as metrics
 from utils.utils import get_optimizer, get_lr_scheduler

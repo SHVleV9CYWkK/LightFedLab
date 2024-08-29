@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from utils.args import parse_args
 from utils.utils import load_model, load_dataset, get_client_data_indices
-from clinets.client_factory import ClientFactory
+from clients.client_factory import ClientFactory
 from servers.server_factory import ServerFactory
 import logging
 logging.getLogger().setLevel(logging.ERROR)

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from clinets.fl_method_clients.fedwcp_client import FedWCPClient
+from clients.fl_method_clients.fedwcp_client import FedWCPClient
 from models.adfedwcp.imprint_classifier import ImprintClassifier
 from utils.kmeans import TorchKMeans
 

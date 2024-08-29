@@ -1,6 +1,6 @@
 from copy import deepcopy
 import torch
-from clinets.client import Client
+from clients.client import Client
 from utils.kmeans import TorchKMeans
 
 

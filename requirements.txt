@@ -7,6 +7,4 @@ torchvision
 torcheval
 transformers
 datasets
-cchardet
 tqdm
-cvxpy
