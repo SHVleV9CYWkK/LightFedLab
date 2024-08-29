@@ -195,9 +195,9 @@ def split_dataset_by_clusters(n_clients, dataset, alpha, n_clusters, test_size, 
     return train_val_split
 
 
-def save_client_indices(dir, dataset_name, split_method, indexes):
+def save_client_indices(dir, dataset_name, split_method, indexes, alpha):
     os.makedirs(dir, exist_ok=True)
-    dataset_subdir = os.path.join(dir, dataset_name + "_" + split_method)
+    dataset_subdir = os.path.join(dir, dataset_name + "_" + split_method + "_" + str(alpha))
     os.makedirs(dataset_subdir, exist_ok=True)
 
     for client_id, client_data in indexes.items():
@@ -227,5 +227,5 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"split_method does not contain {args.split_method}")
 
-    save_client_indices(args.dataset_indexes_dir, args.dataset_name, args.split_method, indices)
+    save_client_indices(args.dataset_indexes_dir, args.dataset_name, args.split_method, indices, args.alpha)
     print(f"Saved client indices to {args.dataset_indexes_dir}")

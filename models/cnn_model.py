@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.models import resnet18, ResNet18_Weights
 
 
 class CNNModel(torch.nn.Module):
@@ -205,4 +206,54 @@ class AlexNet(torch.nn.Module, AdaptedModel):
         x = F.linear(
             x, weight=self.adapted_model_para["classifier.6.weight"], bias=self.adapted_model_para["classifier.6.bias"])
 
+        return x
+
+
+class ResNet18(nn.Module, AdaptedModel):
+    def __init__(self, num_classes=100):
+        super(ResNet18, self).__init__()
+        self.model = resnet18(weights=ResNet18_Weights.DEFAULT)
+        self.model.fc = nn.Linear(512, num_classes)
+
+        # 创建一个字典来保存自适应参数
+        self.adapted_model_para = {name: None for name, val in self.model.named_parameters()}
+
+    def forward(self, x):
+        return self.model(x)
+
+    def adapted_forward(self, x):
+        # 使用自适应参数进行前向传播
+        x = F.conv2d(x, weight=self.adapted_model_para["conv1.weight"], bias=self.adapted_model_para["conv1.bias"], stride=2, padding=3)
+        x = F.batch_norm(x, running_mean=None, running_var=None, weight=self.adapted_model_para["bn1.weight"], bias=self.adapted_model_para["bn1.bias"], training=True)
+        x = F.relu(x)
+        x = self.model.maxpool(x)
+
+        # 逐层调用适应性残差块
+        x = self._adapted_layer_forward(x, "layer1")
+        x = self._adapted_layer_forward(x, "layer2")
+        x = self._adapted_layer_forward(x, "layer3")
+        x = self._adapted_layer_forward(x, "layer4")
+
+        x = self.model.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = F.linear(x, weight=self.adapted_model_para["fc.weight"], bias=self.adapted_model_para["fc.bias"])
+        return x
+
+    def _adapted_layer_forward(self, x, layer_name):
+        layer = getattr(self.model, layer_name)
+        for i, block in enumerate(layer):
+            residual = x
+            out = F.conv2d(x, weight=self.adapted_model_para[f"{layer_name}.{i}.conv1.weight"], bias=self.adapted_model_para[f"{layer_name}.{i}.conv1.bias"], stride=block.conv1.stride, padding=block.conv1.padding)
+            out = F.batch_norm(out, running_mean=None, running_var=None, weight=self.adapted_model_para[f"{layer_name}.{i}.bn1.weight"], bias=self.adapted_model_para[f"{layer_name}.{i}.bn1.bias"], training=True)
+            out = F.relu(out)
+            out = F.conv2d(out, weight=self.adapted_model_para[f"{layer_name}.{i}.conv2.weight"], bias=self.adapted_model_para[f"{layer_name}.{i}.conv2.bias"], stride=block.conv2.stride, padding=block.conv2.padding)
+            out = F.batch_norm(out, running_mean=None, running_var=None, weight=self.adapted_model_para[f"{layer_name}.{i}.bn2.weight"], bias=self.adapted_model_para[f"{layer_name}.{i}.bn2.bias"], training=True)
+
+            if block.downsample is not None:
+                residual = F.conv2d(x, weight=self.adapted_model_para[f"{layer_name}.{i}.downsample.0.weight"], bias=self.adapted_model_para[f"{layer_name}.{i}.downsample.0.bias"], stride=block.downsample[0].stride)
+                residual = F.batch_norm(residual, running_mean=None, running_var=None, weight=self.adapted_model_para[f"{layer_name}.{i}.downsample.1.weight"], bias=self.adapted_model_para[f"{layer_name}.{i}.downsample.1.bias"], training=True)
+
+            out += residual
+            out = F.relu(out)
+            x = out
         return x

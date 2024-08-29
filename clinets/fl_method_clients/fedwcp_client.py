@@ -8,6 +8,7 @@ class FedWCPClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
+        self.n_clusters = kwargs.get('n_clusters', 16)
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 
     def receive_model(self, global_model):
@@ -25,7 +26,7 @@ class FedWCPClient(Client):
         for key, weight in self.model.state_dict().items():
             if 'weight' in key:
                 original_shape = weight.shape
-                kmeans = TorchKMeans(n_clusters=8, is_sparse=True)
+                kmeans = TorchKMeans(n_clusters=self.n_clusters, is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)
                 kmeans.fit(flattened_weights)
 

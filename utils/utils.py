@@ -6,7 +6,7 @@ from torchvision import transforms
 from transformers import MobileBertForSequenceClassification
 import torch.optim as optim
 
-from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet
+from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet, ResNet18
 
 
 def load_dataset(dataset_name):
@@ -47,6 +47,8 @@ def load_dataset(dataset_name):
 def load_model(model_name, num_classes):
     if model_name == 'alexnet':
         model = AlexNet(num_classes)
+    elif model_name == 'resnet18':
+        model = ResNet18(num_classes)
     elif model_name == 'cnn':
         model = CNNModel(num_classes)
     elif model_name == 'leafcnn1':
@@ -69,11 +71,13 @@ def load_model(model_name, num_classes):
     return model
 
 
-def get_client_data_indices(root_dir, dataset_name, split_method):
-    dir_path = os.path.join(root_dir, f"{dataset_name}_{split_method}")
+def get_client_data_indices(root_dir, dataset_name, split_method, alpha):
+    dir_path = os.path.join(root_dir, f"{dataset_name}_{split_method}_{alpha}")
 
     if not os.path.exists(dir_path):
-        raise ValueError(f"No matching dataset and split method found for {dataset_name} and {split_method}")
+        dir_path = os.path.join(root_dir, f"{dataset_name}_{split_method}")
+        if not os.path.exists(dir_path):
+            raise ValueError(f"No matching dataset and split method found for {dataset_name} and {split_method}")
 
     # 获取客户端目录
     client_dirs = [d for d in os.listdir(dir_path) if os.path.isdir(os.path.join(dir_path, d))]

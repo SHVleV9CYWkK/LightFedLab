@@ -50,7 +50,7 @@ def execute_experiment(args, device):
     model = load_model(args.model, num_classes=len(full_dataset.classes)).to(device)
 
     client_indices, num_clients = get_client_data_indices(args.dataset_indexes_dir, args.dataset_name,
-                                                          args.split_method)
+                                                          args.split_method, args.alpha)
 
     clients = ClientFactory().create_client(num_clients, args, client_indices, full_dataset, device)
 

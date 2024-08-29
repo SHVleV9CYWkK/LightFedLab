@@ -13,7 +13,7 @@ def parse_args_for_dataset():
                              'respectively. dirichlet is using dirichlet distributed. label indicates that the client '
                              'owns a subset of label')
     parser.add_argument(
-        '--alpha', type=float, default=0.1,
+        '--alpha', type=float, default=0.4,
         help='Parameters that control the degree of non-IID.'
              'The smaller the alpha, the greater the task difference',
     )
@@ -52,7 +52,8 @@ def parse_args():
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='emnist', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers'],
                         help='dataset name')
-    parser.add_argument('--model', type=str, default='leafcnn1', choices=['cnn', 'alexnet', 'leafcnn1', 'lenet', 'mobilebart'],
+    parser.add_argument('--alpha', type=float, default=0.4, help='The alpha of the dataset, which is used to select the dataset')
+    parser.add_argument('--model', type=str, default='leafcnn1', choices=['cnn', 'alexnet', 'leafcnn1', 'lenet', 'mobilebart', 'resnet18'],
                         help='model name')
     parser.add_argument('--optimizer_name', type=str, default='adam', choices=['sgd', 'adam', 'adamw'],
                         help='The name of the optimizer used')
@@ -69,6 +70,7 @@ def parse_args():
     parser.add_argument('--num_components', type=int, default=2, help='Number of components for FedEM')
     parser.add_argument('--quantization_levels', type=int, default=1, help='The default quantization level for QFedCG')
     parser.add_argument('--is_send_gradients', type=bool, default=False, help='Controls whether the client uploads gradient aggregations, FedCG and QFedCG are not controlled by this parameter.')
+    parser.add_argument('--n_clusters', type=int, default=16, help='The number of weight clusters used by FedWCP')
     parser.add_argument('--n_job', type=int, default=1, help='The number of processes that execute client training in parallel in the server')
     parser.add_argument('--dl_n_job', type=int, default=0, help='The number of parallels in the client\'s Dataload')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
