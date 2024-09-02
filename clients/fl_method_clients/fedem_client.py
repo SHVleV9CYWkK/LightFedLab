@@ -3,7 +3,6 @@ from clients.client import Client
 import torch
 import torcheval.metrics.functional as metrics
 from utils.utils import get_optimizer, get_lr_scheduler
-import torch.nn.functional as F
 
 
 class FedEMClient(Client):

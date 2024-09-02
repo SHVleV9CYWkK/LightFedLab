@@ -5,8 +5,7 @@ from utils.yahoo import YahooAnswersDataset
 from torchvision import transforms
 from transformers import MobileBertForSequenceClassification
 import torch.optim as optim
-
-from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet, ResNet18
+from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet, ResNet18, VGG16
 
 
 def load_dataset(dataset_name):
@@ -19,6 +18,7 @@ def load_dataset(dataset_name):
         dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'cifar100':
         transform = transforms.Compose([
+            transforms.Resize(224),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
         ])
@@ -49,6 +49,8 @@ def load_model(model_name, num_classes):
         model = AlexNet(num_classes)
     elif model_name == 'resnet18':
         model = ResNet18(num_classes)
+    elif model_name == 'vgg16':
+        model = VGG16(num_classes)
     elif model_name == 'cnn':
         model = CNNModel(num_classes)
     elif model_name == 'leafcnn1':

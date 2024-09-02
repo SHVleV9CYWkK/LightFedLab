@@ -1,11 +1,11 @@
-from models.cnn_model import LeafCNN1
+from models.cnn_model import AdaptedModel
 from servers.server import Server
 
 
 class PFedGateServer(Server):
     def __init__(self, clients, model, device, args):
-        if not isinstance(model, LeafCNN1):
-            raise TypeError("The model must be a LeafCNN1 class or subclass")
+        if not isinstance(model, AdaptedModel):
+            raise TypeError("The model must be a AdaptedModel subclass")
         super().__init__(clients, model, device, args)
         for client in clients:
             client.init_gating_layer()
