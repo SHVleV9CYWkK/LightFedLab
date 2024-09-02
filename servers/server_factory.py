@@ -36,6 +36,7 @@ class ServerFactory:
         elif fl_type == 'adfedwcp':
             server_prototype = AdFedWCPServer
             param['n_rounds'] = args.n_rounds
+            param['k_round'] = args.k_round
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 

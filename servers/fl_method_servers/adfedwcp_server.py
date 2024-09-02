@@ -9,6 +9,7 @@ from servers.fl_method_servers.fedwcp_server import FedWCPServer
 class AdFedWCPServer(FedWCPServer):
     def __init__(self, clients, model, device, args):
         self.n_rounds = args['n_rounds']
+        self.k_round = args['k_round']
         self.current_rounds = 0
         self.avg_loss_change = float('inf')
         self.last_loss = self.current_loss = 0
@@ -76,7 +77,7 @@ class AdFedWCPServer(FedWCPServer):
 
     @staticmethod
     def compression_rate(k):
-        return 0.046985 * torch.log(k) + 0.008387   # 近似对数函数
+        return 0.046985 * torch.log(k) + 0.008387  # 近似对数函数
 
     def determine_k(self, current_epoch, avg_loss_change=1.0):
         k = torch.nn.Parameter(torch.randint(self.k_min, self.k_max, (len(self.clients),
@@ -86,7 +87,7 @@ class AdFedWCPServer(FedWCPServer):
                                                                    self.device.type == "cpu" else "cpu"))
         optimizer = optim.Adam([k], lr=0.05)
 
-        for _ in range(1000):
+        for _ in range(self.k_round):
             optimizer.zero_grad()
 
             objective_terms = []
@@ -129,10 +130,6 @@ class AdFedWCPServer(FedWCPServer):
         for idx, k_list in enumerate(k_lists):
             self.clients[idx].assign_num_centroids(k_list)
         self.last_loss = self.current_loss
-
-    def _init_clients(self):
-        super()._init_clients()
-        self.calculate_k()
 
     def train(self):
         self.calculate_k()
