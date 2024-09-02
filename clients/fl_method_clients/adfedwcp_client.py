@@ -25,17 +25,15 @@ class AdFedWCPClient(FedWCPClient):
         outputs = {}
 
         def hook(module, input, output):
-            # 这里检查模块类型以避免保存如 ReLU 这样的激活层的输出
-            if isinstance(module, (nn.Conv2d, nn.Linear)):
+            if isinstance(module, (nn.Conv2d, nn.Linear, nn.BatchNorm2d)):
                 module_name = module.__class__.__name__
                 if module_name in outputs:
-                    # 防止相同类型的层名字相同覆盖，添加标识符
                     module_name += f"_{len(outputs)}"
                 outputs[module_name] = output.detach()
 
         hooks = []
         for layer in self.model.modules():
-            if isinstance(layer, (nn.Conv2d, nn.Linear)):  # 只为卷积和全连接层注册钩子
+            if isinstance(layer, (nn.Conv2d, nn.Linear, nn.BatchNorm2d)):
                 hooks.append(layer.register_forward_hook(hook))
 
         with torch.no_grad():

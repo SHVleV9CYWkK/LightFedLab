@@ -50,6 +50,7 @@ class ClientFactory:
                                             device,
                                             quantization_levels=args.quantization_levels,
                                             sparse_factor=args.sparse_factor,
-                                            dl_n_job=args.dl_n_job))
+                                            dl_n_job=args.dl_n_job,
+                                            n_clusters=args.n_clusters))
 
         return clients

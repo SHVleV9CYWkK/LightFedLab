@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class ImprintClassifier(nn.Module):
     def __init__(self, num_channels, num_classes=10, embedding_length=100, device='cpu'):
         super(ImprintClassifier, self).__init__()
-        target_size = round(math.sqrt(embedding_length / num_channels))
+        target_size = math.ceil(math.sqrt(embedding_length / num_channels))
         self.target_size = target_size
         self.num_channels = num_channels
         input_features = target_size * target_size * num_channels

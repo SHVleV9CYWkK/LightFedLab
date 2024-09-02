@@ -81,7 +81,7 @@ class AdFedWCPServer(FedWCPServer):
     def determine_k(self, current_epoch, avg_loss_change=1.0):
         k = torch.nn.Parameter(torch.randint(self.k_min, self.k_max, (len(self.clients),
                                                                       len(self.clients[0].layer_importance_weights)),
-                                             dtype=torch.float32))
+                                             dtype=torch.float32, device=self.device))
         optimizer = optim.Adam([k], lr=0.05)
 
         for _ in range(1000):
