@@ -25,7 +25,7 @@ class AdFedWCPClient(FedWCPClient):
         outputs = {}
 
         def hook(module, input, output):
-            if isinstance(module, (nn.Conv2d, nn.Linear, nn.BatchNorm2d)):
+            if isinstance(module, (nn.Conv2d, nn.Linear)):
                 module_name = module.__class__.__name__
                 if module_name in outputs:
                     module_name += f"_{len(outputs)}"
@@ -33,7 +33,7 @@ class AdFedWCPClient(FedWCPClient):
 
         hooks = []
         for layer in self.model.modules():
-            if isinstance(layer, (nn.Conv2d, nn.Linear, nn.BatchNorm2d)):
+            if isinstance(layer, (nn.Conv2d, nn.Linear)):
                 hooks.append(layer.register_forward_hook(hook))
 
         with torch.no_grad():
@@ -96,10 +96,16 @@ class AdFedWCPClient(FedWCPClient):
 
     def assign_num_centroids(self, k_list):
         index = 0
+        last_conv_k = None
         for key, weight in self.global_model.state_dict().items():
             if 'weight' in key:
-                self.num_centroids[key] = int(k_list[index])
-                index += 1
+                if 'conv' in key or 'fc' in key:
+                    self.num_centroids[key] = int(k_list[index])
+                    index += 1
+                if 'conv' in key:
+                    last_conv_k = self.num_centroids[key]
+                elif 'bn' in key:
+                    self.num_centroids[key] = last_conv_k
 
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
@@ -127,6 +133,7 @@ class AdFedWCPClient(FedWCPClient):
                 self.num_centroids[key] = 8
         super().init_client()
         self.compute_layer_weights()
+        print(f"Client{self.id} initialized successfully")
 
     def train(self):
         result = super().train()

@@ -18,7 +18,6 @@ def load_dataset(dataset_name):
         dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'cifar100':
         transform = transforms.Compose([
-            transforms.Resize(224),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
         ])

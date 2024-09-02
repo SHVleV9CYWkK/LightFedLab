@@ -81,7 +81,9 @@ class AdFedWCPServer(FedWCPServer):
     def determine_k(self, current_epoch, avg_loss_change=1.0):
         k = torch.nn.Parameter(torch.randint(self.k_min, self.k_max, (len(self.clients),
                                                                       len(self.clients[0].layer_importance_weights)),
-                                             dtype=torch.float32, device=self.device))
+                                             dtype=torch.float32,
+                                             device=self.device if self.device.type == "cuda" or
+                                                                   self.device.type == "cpu" else "cpu"))
         optimizer = optim.Adam([k], lr=0.05)
 
         for _ in range(1000):
@@ -110,7 +112,7 @@ class AdFedWCPServer(FedWCPServer):
                                                                                   avg_loss_change)
                         k[i, j].clamp_(lower_bound, upper_bound)
 
-        return k.detach().round().int().numpy()
+        return k.detach().round().int().cpu().numpy()
 
     def calculate_k(self):
         alpha = 0.5
