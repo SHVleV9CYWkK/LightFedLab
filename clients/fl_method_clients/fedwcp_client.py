@@ -24,7 +24,7 @@ class FedWCPClient(Client):
         clustered_state_dict = {}
         mask_dict = {}
         for key, weight in self.model.state_dict().items():
-            if 'weight' in key:
+            if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 original_shape = weight.shape
                 kmeans = TorchKMeans(n_clusters=self.n_clusters, is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)

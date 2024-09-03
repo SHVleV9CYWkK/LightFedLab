@@ -131,9 +131,14 @@ class AdFedWCPServer(FedWCPServer):
             self.clients[idx].assign_num_centroids(k_list)
         self.last_loss = self.current_loss
 
+    def compute_client_layer_weights(self):
+        for client in self.selected_clients:
+            client.compute_layer_weights()
+
     def train(self):
         self.calculate_k()
         super().train()
+        self.compute_client_layer_weights()
         self.current_rounds += 1
 
     def evaluate(self):

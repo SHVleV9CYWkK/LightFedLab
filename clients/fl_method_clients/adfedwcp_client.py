@@ -32,7 +32,9 @@ class AdFedWCPClient(FedWCPClient):
                 outputs[module_name] = output.detach()
 
         hooks = []
-        for layer in self.model.modules():
+        for name, layer in self.model.named_modules():
+            if 'downsample' in name:
+                continue
             if isinstance(layer, (nn.Conv2d, nn.Linear)):
                 hooks.append(layer.register_forward_hook(hook))
 
@@ -73,7 +75,6 @@ class AdFedWCPClient(FedWCPClient):
                     layer_accuracies[name] = accuracy.item()
                     layer_counts[name] = 1
 
-        # 计算每层的平均准确率
         for name in layer_accuracies:
             layer_accuracies[name] /= layer_counts[name]
 
@@ -96,22 +97,16 @@ class AdFedWCPClient(FedWCPClient):
 
     def assign_num_centroids(self, k_list):
         index = 0
-        last_conv_k = None
         for key, weight in self.global_model.state_dict().items():
-            if 'weight' in key:
-                if 'conv' in key or 'fc' in key:
-                    self.num_centroids[key] = int(k_list[index])
-                    index += 1
-                if 'conv' in key:
-                    last_conv_k = self.num_centroids[key]
-                elif 'bn' in key:
-                    self.num_centroids[key] = last_conv_k
+            if 'weight' in key and 'bn' not in key and 'downsample' not in key:
+                self.num_centroids[key] = int(k_list[index])
+                index += 1
 
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
         mask_dict = {}
         for key, weight in self.model.state_dict().items():
-            if 'weight' in key:
+            if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 original_shape = weight.shape
                 kmeans = TorchKMeans(n_clusters=self.num_centroids[key], is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)
@@ -129,7 +124,7 @@ class AdFedWCPClient(FedWCPClient):
 
     def init_client(self):
         for key, weight in self.global_model.state_dict().items():
-            if 'weight' in key:
+            if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 self.num_centroids[key] = 8
         super().init_client()
         self.compute_layer_weights()
@@ -137,5 +132,4 @@ class AdFedWCPClient(FedWCPClient):
 
     def train(self):
         result = super().train()
-        self.compute_layer_weights()
         return result
