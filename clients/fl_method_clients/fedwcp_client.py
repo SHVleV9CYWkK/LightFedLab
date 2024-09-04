@@ -9,7 +9,7 @@ class FedWCPClient(Client):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.n_clusters = kwargs.get('n_clusters', 16)
-        self.base_decay_rate = kwargs.get('base_decay_rate', 0.5)
+        self.base_decay_rate = hyperparam['base_decay_rate']
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 
     def receive_model(self, global_model):
