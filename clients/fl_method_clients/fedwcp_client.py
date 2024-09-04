@@ -9,6 +9,7 @@ class FedWCPClient(Client):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.n_clusters = kwargs.get('n_clusters', 16)
+        self.base_decay_rate = kwargs.get('base_decay_rate', 0.5)
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 
     def receive_model(self, global_model):
@@ -61,7 +62,7 @@ class FedWCPClient(Client):
         ref_momentum = self._compute_global_local_model_difference()
 
         self.model.train()
-        base_decay_rate = 0.5
+
         exponential_average_loss = None
         alpha = 0.5  # 损失平衡系数
         for epoch in range(self.epochs):
@@ -82,9 +83,9 @@ class FedWCPClient(Client):
 
                 # 动量退火策略
                 if loss.item() < exponential_average_loss:
-                    decay_factor = min(base_decay_rate ** (idx + 1) * 1.1, 0.8)
+                    decay_factor = min(self.base_decay_rate ** (idx + 1) * 1.1, 0.8)
                 else:
-                    decay_factor = max(base_decay_rate ** (idx + 1) / 1.1, 0.1)
+                    decay_factor = max(self.base_decay_rate ** (idx + 1) / 1.1, 0.1)
 
                 for name, param in self.model.named_parameters():
                     if name in ref_momentum:

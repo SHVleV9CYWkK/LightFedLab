@@ -171,25 +171,77 @@ class AlexNet(torch.nn.Module, AdaptedModel):
 
         # 执行分类部分的自适应前向传播
         x = F.dropout(x, 0.5, training=self.training)
-        x = F.relu(F.linear(x, self.adapted_model_para['classifier.1.weight'], self.adapted_model_para['classifier.1.bias']))
+        x = F.relu(
+            F.linear(x, self.adapted_model_para['classifier.1.weight'], self.adapted_model_para['classifier.1.bias']))
         x = F.dropout(x, 0.5, training=self.training)
-        x = F.relu(F.linear(x, self.adapted_model_para['classifier.4.weight'], self.adapted_model_para['classifier.4.bias']))
+        x = F.relu(
+            F.linear(x, self.adapted_model_para['classifier.4.weight'], self.adapted_model_para['classifier.4.bias']))
         x = F.linear(x, self.adapted_model_para['classifier.6.weight'], self.adapted_model_para['classifier.6.bias'])
 
         return x
 
 
-class ResNet18(nn.Module):
+class ResNet18(torch.nn.Module, AdaptedModel):
     def __init__(self, num_classes):
         super(ResNet18, self).__init__()
         self.model = resnet18(weights=ResNet18_Weights.DEFAULT)
         self.model.fc = nn.Linear(512, num_classes)
 
         # 创建一个字典来保存自适应参数
-        self.adapted_model_para = {name: None for name, val in self.model.named_parameters()}
+        self.adapted_model_para = {name: None for name, val in self.named_parameters()}
 
     def forward(self, x):
         return self.model(x)
+
+    def adapted_forward(self, x):
+        # Begin with the initial convolution and batch norm
+        x = F.conv2d(x, self.adapted_model_para['model.conv1.weight'], None, stride=2, padding=3)
+        x = F.batch_norm(x, self.model.bn1.running_mean, self.model.bn1.running_var,
+                         self.adapted_model_para['model.bn1.weight'], self.adapted_model_para['model.bn1.bias'],
+                         training=self.model.bn1.training, momentum=self.model.bn1.momentum, eps=self.model.bn1.eps)
+        x = F.relu(x)
+        x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1)
+
+        # Process each block of the ResNet18
+        for layer_name in ['layer1', 'layer2', 'layer3', 'layer4']:
+            for block_index in range(2):  # Each layer in ResNet18 has 2 blocks
+                block = getattr(self.model, layer_name)[block_index]
+                identity = x
+
+                # First sub-layer of the block
+                out = F.conv2d(x, self.adapted_model_para[f'model.{layer_name}.{block_index}.conv1.weight'], None,
+                               stride=block.conv1.stride, padding=block.conv1.padding)
+                out = F.batch_norm(out, block.bn1.running_mean, block.bn1.running_var,
+                                   self.adapted_model_para[f'model.{layer_name}.{block_index}.bn1.weight'],
+                                   self.adapted_model_para[f'model.{layer_name}.{block_index}.bn1.bias'],
+                                   training=block.bn1.training, momentum=block.bn1.momentum, eps=block.bn1.eps)
+                out = F.relu(out)
+
+                # Second sub-layer of the block
+                out = F.conv2d(out, self.adapted_model_para[f'model.{layer_name}.{block_index}.conv2.weight'], None,
+                               stride=block.conv2.stride, padding=block.conv2.padding)
+                out = F.batch_norm(out, block.bn2.running_mean, block.bn2.running_var,
+                                   self.adapted_model_para[f'model.{layer_name}.{block_index}.bn2.weight'],
+                                   self.adapted_model_para[f'model.{layer_name}.{block_index}.bn2.bias'],
+                                   training=block.bn2.training, momentum=block.bn2.momentum, eps=block.bn2.eps)
+
+                # Shortcut connection
+                if block.downsample is not None:
+                    identity = F.conv2d(x, self.adapted_model_para[f'model.{layer_name}.{block_index}.downsample.0.weight'], None,
+                                        stride=block.downsample[0].stride)
+                    identity = F.batch_norm(identity, block.downsample[1].running_mean, block.downsample[1].running_var,
+                                            self.adapted_model_para[f'model.{layer_name}.{block_index}.downsample.1.weight'],
+                                            self.adapted_model_para[f'model.{layer_name}.{block_index}.downsample.1.bias'],
+                                            training=block.downsample[1].training, momentum=block.downsample[1].momentum,
+                                            eps=block.downsample[1].eps)
+
+                x = F.relu(out + identity)
+
+        x = F.adaptive_avg_pool2d(x, (1, 1))
+        x = torch.flatten(x, 1)
+        x = F.linear(x, self.adapted_model_para['model.fc.weight'], self.adapted_model_para['model.fc.bias'])
+        return x
+
 
 
 class VGG16(nn.Module, AdaptedModel):
@@ -205,7 +257,8 @@ class VGG16(nn.Module, AdaptedModel):
 
     def adapted_forward(self, x):
         # 通过自适应参数调整第一层卷积和BN
-        x = F.conv2d(x, weight=self.adapted_model_para['features.0.weight'], bias=self.adapted_model_para['features.0.bias'], stride=1, padding=1)
+        x = F.conv2d(x, weight=self.adapted_model_para['features.0.weight'],
+                     bias=self.adapted_model_para['features.0.bias'], stride=1, padding=1)
         x = F.relu(x)
         x = F.max_pool2d(x, kernel_size=2, stride=2)
 
@@ -215,23 +268,27 @@ class VGG16(nn.Module, AdaptedModel):
         # 平均池化后进入分类器
         x = self.model.avgpool(x)
         x = torch.flatten(x, 1)
-        x = F.linear(x, weight=self.adapted_model_para["classifier.0.weight"], bias=self.adapted_model_para["classifier.0.bias"])
+        x = F.linear(x, weight=self.adapted_model_para["classifier.0.weight"],
+                     bias=self.adapted_model_para["classifier.0.bias"])
         x = F.relu(x)
         x = F.dropout(x, 0.5, training=self.training)
-        x = F.linear(x, weight=self.adapted_model_para["classifier.3.weight"], bias=self.adapted_model_para["classifier.3.bias"])
+        x = F.linear(x, weight=self.adapted_model_para["classifier.3.weight"],
+                     bias=self.adapted_model_para["classifier.3.bias"])
         x = F.relu(x)
         x = F.dropout(x, 0.5, training=self.training)
-        x = F.linear(x, weight=self.adapted_model_para["classifier.6.weight"], bias=self.adapted_model_para["classifier.6.bias"])
+        x = F.linear(x, weight=self.adapted_model_para["classifier.6.weight"],
+                     bias=self.adapted_model_para["classifier.6.bias"])
         return x
 
     def _adapted_features_forward(self, x, features_name, start, end):
         features = getattr(self.model, features_name)
         for i in range(start, end):
             if isinstance(features[i], nn.Conv2d):
-                x = F.conv2d(x, weight=self.adapted_model_para[f'{features_name}.{i}.weight'], bias=self.adapted_model_para[f'{features_name}.{i}.bias'], stride=features[i].stride, padding=features[i].padding)
+                x = F.conv2d(x, weight=self.adapted_model_para[f'{features_name}.{i}.weight'],
+                             bias=self.adapted_model_para[f'{features_name}.{i}.bias'], stride=features[i].stride,
+                             padding=features[i].padding)
                 x = F.relu(x)
             elif isinstance(features[i], nn.MaxPool2d):
-                x = F.max_pool2d(x, kernel_size=features[i].kernel_size, stride=features[i].stride, padding=features[i].padding)
+                x = F.max_pool2d(x, kernel_size=features[i].kernel_size, stride=features[i].stride,
+                                 padding=features[i].padding)
         return x
-
-

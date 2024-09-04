@@ -4,7 +4,7 @@ from servers.server import Server
 
 class PFedGateServer(Server):
     def __init__(self, clients, model, device, args):
-        if not isinstance(model, AdaptedModel):
+        if not issubclass(model.__class__, AdaptedModel):
             raise TypeError("The model must be a AdaptedModel subclass")
         super().__init__(clients, model, device, args)
         for client in clients:

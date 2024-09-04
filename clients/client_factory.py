@@ -28,6 +28,7 @@ class ClientFactory:
             client_prototype = QFedCGClient
         elif fl_type == 'fedwcp':
             client_prototype = FedWCPClient
+            train_hyperparam["base_decay_rate"] = args.base_decay_rate
         elif fl_type == 'pfedgate':
             client_prototype = PFedGateClient
             train_hyperparam['gating_lr'] = args.gating_lr
@@ -38,6 +39,7 @@ class ClientFactory:
             train_hyperparam['num_components'] = args.num_components
         elif fl_type == 'adfedwcp':
             client_prototype = AdFedWCPClient
+            train_hyperparam["base_decay_rate"] = args.base_decay_rate
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 

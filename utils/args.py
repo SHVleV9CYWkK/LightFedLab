@@ -65,6 +65,7 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--n_rounds', type=int, default=100, help='number of global rounds')
     parser.add_argument('--k_round', type=int, default=1000, help='AdFedWCP solves k, which is used to control the solution time of k.')
+    parser.add_argument('--base_decay_rate', type=float, default=0.5, help='FedWCP updates the base attenuation rate locally')
     parser.add_argument('--scheduler_name', type=str, default='reduce_on_plateau', choices=['sqrt', 'linear', 'constant', 'cosine_annealing', 'multi_step', 'reduce_on_plateau'],
                         help='Select the name of the learning rate scheduler')
     parser.add_argument('--sparse_factor', type=float, default=0.5, help='Set the sparsity for the method that requires the sparsity or compression ratio')
