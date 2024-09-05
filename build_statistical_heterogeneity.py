@@ -141,7 +141,8 @@ def split_dataset_by_clusters(n_clients, dataset, alpha, n_clusters, test_size, 
     :return: list (size `n_clients`) of subgroups, each subgroup is a list of indices.
     """
 
-    n_classes = len(torch.unique(dataset.targets if torch.is_tensor(dataset.targets) else torch.tensor(dataset.targets)))
+    n_classes = len(
+        torch.unique(dataset.targets if torch.is_tensor(dataset.targets) else torch.tensor(dataset.targets)))
     if n_clusters == -1:
         n_clusters = n_classes
 
@@ -195,9 +196,59 @@ def split_dataset_by_clusters(n_clients, dataset, alpha, n_clusters, test_size, 
     return train_val_split
 
 
+def evenly_split_dataset(dataset, num_clients, test_size, frac, seed=None):
+    """
+    Splits a dataset evenly across clients, maintaining the original label distribution for each client,
+    while only using a specified fraction of the dataset.
+
+    :param dataset: The dataset to split (assumed to be a PyTorch Dataset with an attribute 'targets' for labels).
+    :param num_clients: The number of clients to split the dataset into.
+    :param test_size: The proportion of the dataset to allocate as validation data.
+    :param frac: Fraction of the dataset to use for the split (between 0 and 1).
+    :param seed: Optional seed for reproducibility.
+    :return: A dictionary with client IDs as keys and 'train' and 'val' as sub-keys pointing to the training and validation subsets.
+    """
+    # Ensure reproducibility
+    np.random.seed(seed)
+
+    # Initialize a dictionary to hold indices for each client
+    clients_indices = {i: [] for i in range(num_clients)}
+
+    # Get unique classes in the dataset
+    targets = np.array(dataset.targets)
+    unique_classes = np.unique(targets)
+
+    # Distribute indices class-wise
+    for cls in unique_classes:
+        cls_indices = np.where(targets == cls)[0]
+        np.random.shuffle(cls_indices)  # Shuffle the indices for this class
+
+        # Use only a fraction of the data from this class
+        frac_indices = cls_indices[:int(len(cls_indices) * frac)]
+
+        # Split the fraction of class indices evenly among clients
+        cls_split = np.array_split(frac_indices, num_clients)
+
+        # Append the split indices to the corresponding client
+        for i in range(num_clients):
+            clients_indices[i].extend(cls_split[i])
+
+    # Split each client's data into training and validation sets
+    train_val_split = {}
+    for client_id, indices in clients_indices.items():
+        np.random.shuffle(indices)  # Shuffle indices for each client
+        train_idx, val_idx = train_test_split(indices, test_size=test_size, random_state=seed)
+        train_val_split[client_id] = {'train': train_idx, 'val': val_idx}
+
+    return train_val_split
+
+
 def save_client_indices(dir, dataset_name, split_method, indexes, alpha):
     os.makedirs(dir, exist_ok=True)
-    dataset_subdir = os.path.join(dir, dataset_name + "_" + split_method + "_" + str(alpha))
+    if split_method != 'even':
+        dataset_subdir = os.path.join(dir, dataset_name + "_" + split_method + "_" + str(alpha))
+    else:
+        dataset_subdir = os.path.join(dir, dataset_name + "_" + split_method)
     os.makedirs(dataset_subdir, exist_ok=True)
 
     for client_id, client_data in indexes.items():
@@ -219,11 +270,16 @@ if __name__ == "__main__":
 
     full_dataset = load_dataset(args.dataset_name)
     if args.split_method == "dirichlet":
-        indices = split_data_with_dirichlet(args.clients_num, args.alpha, full_dataset, args.test_ratio, args.frac, args.seed)
+        indices = split_data_with_dirichlet(args.clients_num, args.alpha, full_dataset, args.test_ratio, args.frac,
+                                            args.seed)
     elif args.split_method == "label":
-        indices = split_data_with_label(args.clients_num, args.number_label, full_dataset, args.test_ratio, args.frac, args.seed)
+        indices = split_data_with_label(args.clients_num, args.number_label, full_dataset, args.test_ratio, args.frac,
+                                        args.seed)
     elif args.split_method == "clusters":
-        indices = split_dataset_by_clusters(args.clients_num, full_dataset, args.alpha, args.n_clusters, args.test_ratio, args.frac, args.seed)
+        indices = split_dataset_by_clusters(args.clients_num, full_dataset, args.alpha, args.n_clusters,
+                                            args.test_ratio, args.frac, args.seed)
+    elif args.split_method == "even":
+        indices = evenly_split_dataset(full_dataset, args.clients_num, args.test_ratio, args.frac, args.seed)
     else:
         raise ValueError(f"split_method does not contain {args.split_method}")
 

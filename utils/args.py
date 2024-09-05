@@ -8,7 +8,7 @@ def parse_args_for_dataset():
     parser.add_argument('--clients_num', type=int, default=10, help='number of clients')
     parser.add_argument('--n_clusters', type=int, default=-1, help='number of clusters using clusters split method')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
-    parser.add_argument('--split_method', type=str, default='train', choices=['dirichlet', 'label', 'clusters'],
+    parser.add_argument('--split_method', type=str, default='train', choices=['dirichlet', 'label', 'clusters', 'even'],
                         help='The methods of splitting the data set to generate non-IID are dirichlet and label '
                              'respectively. dirichlet is using dirichlet distributed. label indicates that the client '
                              'owns a subset of label')
@@ -79,7 +79,7 @@ def parse_args():
     parser.add_argument('--log_dir', type=str, default='logs', help='log directory')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'],
                         help='determine the computing platform')
-    parser.add_argument('--split_method', type=str, choices=['dirichlet', 'label', 'clusters'],
+    parser.add_argument('--split_method', type=str, choices=['dirichlet', 'label', 'clusters', 'even'],
                         help='The methods of splitting the data set to generate non-IID are dirichlet and label '
                              'respectively. dirichlet is using dirichlet distributed. label indicates that the client '
                              'owns a subset of label')
