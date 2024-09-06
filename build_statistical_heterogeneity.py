@@ -196,27 +196,35 @@ def split_dataset_by_clusters(n_clients, dataset, alpha, n_clusters, test_size, 
     return train_val_split
 
 
-def evenly_split_dataset(dataset, num_clients, test_size, frac, seed=None):
-    data_splits = {i: {'train': [], 'val': []} for i in range(num_clients)}
+def split_dataset_iid(n_clients, dataset, test_size, frac, seed):
+    """
+    Split dataset among `n_clients` in an IID fashion.
 
-    targets = np.array(dataset.targets)
-    unique_classes = np.unique(targets)
+    :param n_clients: Number of clients to distribute the data to
+    :param dataset: Dataset object with .targets for labels
+    :param test_size: Proportion of the dataset to reserve for validation
+    :param frac: Fraction of the dataset to use
+    :param seed: Random seed for reproducibility
+    :return: Dictionary with client indices mapping to {'train': indices, 'val': indices}
+    """
+    # Total number of samples to select
+    total_samples = int(len(dataset) * frac)
 
-    for cls in unique_classes:
-        cls_indices = np.where(targets == cls)[0]
-        np.random.shuffle(cls_indices)
+    # Randomly select indices from the dataset
+    all_indices = np.arange(len(dataset))
+    np.random.shuffle(all_indices)
+    selected_indices = all_indices[:total_samples]
 
-        num_samples = int(np.ceil(len(cls_indices) * frac))
-        cls_indices = cls_indices[:num_samples]
+    # Split indices evenly among clients
+    indices_per_client = np.array_split(selected_indices, n_clients)
 
-        cls_splits = np.array_split(cls_indices, num_clients)
+    # For each client, split their indices into train and validation sets
+    train_val_split = {}
+    for i, indices in enumerate(indices_per_client):
+        train_indices, val_indices = train_test_split(indices, test_size=test_size, random_state=seed)
+        train_val_split[i] = {'train': train_indices, 'val': val_indices}
 
-        for i in range(num_clients):
-            train_idx, test_idx = train_test_split(cls_splits[i], test_size=test_size, random_state=seed)
-            data_splits[i]['train'].extend(train_idx)
-            data_splits[i]['val'].extend(test_idx)
-
-    return data_splits
+    return train_val_split
 
 
 def save_client_indices(dir, dataset_name, split_method, indexes, alpha):
@@ -255,7 +263,7 @@ if __name__ == "__main__":
         indices = split_dataset_by_clusters(args.clients_num, full_dataset, args.alpha, args.n_clusters,
                                             args.test_ratio, args.frac, args.seed)
     elif args.split_method == "even":
-        indices = evenly_split_dataset(full_dataset, args.clients_num, args.test_ratio, args.frac, args.seed)
+        indices = split_dataset_iid(args.clients_num, full_dataset, args.test_ratio, args.frac, args.seed)
     else:
         raise ValueError(f"split_method does not contain {args.split_method}")
 
