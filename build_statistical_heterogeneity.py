@@ -197,50 +197,26 @@ def split_dataset_by_clusters(n_clients, dataset, alpha, n_clusters, test_size, 
 
 
 def evenly_split_dataset(dataset, num_clients, test_size, frac, seed=None):
-    """
-    Splits a dataset evenly across clients, maintaining the original label distribution for each client,
-    while only using a specified fraction of the dataset.
+    data_splits = {i: {'train': [], 'val': []} for i in range(num_clients)}
 
-    :param dataset: The dataset to split (assumed to be a PyTorch Dataset with an attribute 'targets' for labels).
-    :param num_clients: The number of clients to split the dataset into.
-    :param test_size: The proportion of the dataset to allocate as validation data.
-    :param frac: Fraction of the dataset to use for the split (between 0 and 1).
-    :param seed: Optional seed for reproducibility.
-    :return: A dictionary with client IDs as keys and 'train' and 'val' as sub-keys pointing to the training and validation subsets.
-    """
-    # Ensure reproducibility
-    np.random.seed(seed)
-
-    # Initialize a dictionary to hold indices for each client
-    clients_indices = {i: [] for i in range(num_clients)}
-
-    # Get unique classes in the dataset
     targets = np.array(dataset.targets)
     unique_classes = np.unique(targets)
 
-    # Distribute indices class-wise
     for cls in unique_classes:
         cls_indices = np.where(targets == cls)[0]
-        np.random.shuffle(cls_indices)  # Shuffle the indices for this class
+        np.random.shuffle(cls_indices)
 
-        # Use only a fraction of the data from this class
-        frac_indices = cls_indices[:int(len(cls_indices) * frac)]
+        num_samples = int(np.ceil(len(cls_indices) * frac))
+        cls_indices = cls_indices[:num_samples]
 
-        # Split the fraction of class indices evenly among clients
-        cls_split = np.array_split(frac_indices, num_clients)
+        cls_splits = np.array_split(cls_indices, num_clients)
 
-        # Append the split indices to the corresponding client
         for i in range(num_clients):
-            clients_indices[i].extend(cls_split[i])
+            train_idx, test_idx = train_test_split(cls_splits[i], test_size=test_size, random_state=seed)
+            data_splits[i]['train'].extend(train_idx)
+            data_splits[i]['val'].extend(test_idx)
 
-    # Split each client's data into training and validation sets
-    train_val_split = {}
-    for client_id, indices in clients_indices.items():
-        np.random.shuffle(indices)  # Shuffle indices for each client
-        train_idx, val_idx = train_test_split(indices, test_size=test_size, random_state=seed)
-        train_val_split[client_id] = {'train': train_idx, 'val': val_idx}
-
-    return train_val_split
+    return data_splits
 
 
 def save_client_indices(dir, dataset_name, split_method, indexes, alpha):
