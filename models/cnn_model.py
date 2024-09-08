@@ -211,18 +211,14 @@ class ResNet18(torch.nn.Module, AdaptedModel):
                 # First sub-layer of the block
                 out = F.conv2d(x, self.adapted_model_para[f'model.{layer_name}.{block_index}.conv1.weight'], None,
                                stride=block.conv1.stride, padding=block.conv1.padding)
-                out = F.batch_norm(out, block.bn1.running_mean, block.bn1.running_var,
-                                   self.adapted_model_para[f'model.{layer_name}.{block_index}.bn1.weight'],
-                                   self.adapted_model_para[f'model.{layer_name}.{block_index}.bn1.bias'],
+                out = F.batch_norm(out, block.bn1.running_mean, block.bn1.running_var, block.bn1.weight, block.bn1.bias,
                                    training=block.bn1.training, momentum=block.bn1.momentum, eps=block.bn1.eps)
                 out = F.relu(out)
 
                 # Second sub-layer of the block
                 out = F.conv2d(out, self.adapted_model_para[f'model.{layer_name}.{block_index}.conv2.weight'], None,
                                stride=block.conv2.stride, padding=block.conv2.padding)
-                out = F.batch_norm(out, block.bn2.running_mean, block.bn2.running_var,
-                                   self.adapted_model_para[f'model.{layer_name}.{block_index}.bn2.weight'],
-                                   self.adapted_model_para[f'model.{layer_name}.{block_index}.bn2.bias'],
+                out = F.batch_norm(out, block.bn2.running_mean, block.bn2.running_var, block.bn2.weight, block.bn2.bias,
                                    training=block.bn2.training, momentum=block.bn2.momentum, eps=block.bn2.eps)
 
                 # Shortcut connection
@@ -230,8 +226,7 @@ class ResNet18(torch.nn.Module, AdaptedModel):
                     identity = F.conv2d(x, self.adapted_model_para[f'model.{layer_name}.{block_index}.downsample.0.weight'], None,
                                         stride=block.downsample[0].stride)
                     identity = F.batch_norm(identity, block.downsample[1].running_mean, block.downsample[1].running_var,
-                                            self.adapted_model_para[f'model.{layer_name}.{block_index}.downsample.1.weight'],
-                                            self.adapted_model_para[f'model.{layer_name}.{block_index}.downsample.1.bias'],
+                                            block.downsample[1].weight, block.downsample[1].bias,
                                             training=block.downsample[1].training, momentum=block.downsample[1].momentum,
                                             eps=block.downsample[1].eps)
 

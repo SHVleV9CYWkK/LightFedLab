@@ -63,40 +63,40 @@ if __name__ == '__main__':
     #         file.write(f"Params: {params}, Max Accuracy: {max_accuracy}\n")
 
     # 参数空间
-    param_grid = {
-        "fl_method": ["fedwcp"],
-        "dataset_name": ["cifar100"],
-        "model": ["resnet18"],
-        "local_epochs": [1],
-        "base_decay_rate": [0.1],
-        "lr": [0.005, 0.001, 0.0005, 0.0001],
-        "batch_size": [32],
-        "n_clusters": [8, 16, 32],
-        "n_rounds": [50],
-        "seed": [42],
-        "device": ["cuda"],
-        "split_method": ["clusters"],
-        "optimizer_name": ["adam"],
-        "n_job": [0]
-    }
-
-    # 生成所有参数组合
-    keys, values = zip(*param_grid.items())
-    param_combinations = [dict(zip(keys, v)) for v in product(*values)]
-
-    # 记录每个参数组合的最大准确率
-    results = []
-
-    # 遍历所有参数组合，执行并记录最大准确率
-    for params in param_combinations:
-        max_accuracy = run_and_capture(params)
-        results.append((params, max_accuracy))
-        with open("grid_search_results.txt", "a") as file:
-            file.write(f"Params: {params}, Max Accuracy: {max_accuracy}\n")
-
-    # # 参数空间
     # param_grid = {
-    #     "fl_method": ["fedavg", "fedmask", "qfedcg"],
+    #     "fl_method": ["fedwcp"],
+    #     "dataset_name": ["cifar100"],
+    #     "model": ["resnet18"],
+    #     "local_epochs": [1],
+    #     "base_decay_rate": [0.1],
+    #     "lr": [0.005, 0.001, 0.0005, 0.0001],
+    #     "batch_size": [32],
+    #     "n_clusters": [8, 16, 32],
+    #     "n_rounds": [50],
+    #     "seed": [42],
+    #     "device": ["cuda"],
+    #     "split_method": ["clusters"],
+    #     "optimizer_name": ["adam"],
+    #     "n_job": [0]
+    # }
+    #
+    # # 生成所有参数组合
+    # keys, values = zip(*param_grid.items())
+    # param_combinations = [dict(zip(keys, v)) for v in product(*values)]
+    #
+    # # 记录每个参数组合的最大准确率
+    # results = []
+    #
+    # # 遍历所有参数组合，执行并记录最大准确率
+    # for params in param_combinations:
+    #     max_accuracy = run_and_capture(params)
+    #     results.append((params, max_accuracy))
+    #     with open("grid_search_results.txt", "a") as file:
+    #         file.write(f"Params: {params}, Max Accuracy: {max_accuracy}\n")
+
+    # 参数空间
+    # param_grid = {
+    #     "fl_method": ["fedavg"],
     #     "dataset_name": ["cifar100"],
     #     "model": ["resnet18"],
     #     "local_epochs": [1],
@@ -123,8 +123,68 @@ if __name__ == '__main__':
     #     results.append((params, max_accuracy))
     #     with open("grid_search_results.txt", "a") as file:
     #         file.write(f"Params: {params}, Max Accuracy: {max_accuracy}\n")
-    #
-    # # 参数空间
+
+    param_grid = {
+        "fl_method": ["fedmask"],
+        "dataset_name": ["cifar100"],
+        "model": ["resnet18"],
+        "local_epochs": [1],
+        "lr": [0.5, 0.1, 0.05, 0.01],
+        "batch_size": [32],
+        "n_rounds": [50],
+        "seed": [42],
+        "device": ["cuda"],
+        "split_method": ["clusters"],
+        "optimizer_name": ["adam"],
+        "n_job": [0]
+    }
+
+    # 生成所有参数组合
+    keys, values = zip(*param_grid.items())
+    param_combinations = [dict(zip(keys, v)) for v in product(*values)]
+
+    # 记录每个参数组合的最大准确率
+    results = []
+
+    # 遍历所有参数组合，执行并记录最大准确率
+    for params in param_combinations:
+        max_accuracy = run_and_capture(params)
+        results.append((params, max_accuracy))
+        with open("grid_search_results.txt", "a") as file:
+            file.write(f"Params: {params}, Max Accuracy: {max_accuracy}\n")
+
+    # "qfedcg"
+    param_grid = {
+        "fl_method": ["qfedcg"],
+        "dataset_name": ["cifar100"],
+        "model": ["resnet18"],
+        "local_epochs": [1],
+        "server_lr": [0.05, 0.01, 0.005, 0.001],
+        "lr": [0.001, 0.0005, 0.0001],
+        "batch_size": [32],
+        "n_rounds": [50],
+        "seed": [42],
+        "device": ["cuda"],
+        "split_method": ["clusters"],
+        "optimizer_name": ["adam"],
+        "n_job": [0]
+    }
+
+    # 生成所有参数组合
+    keys, values = zip(*param_grid.items())
+    param_combinations = [dict(zip(keys, v)) for v in product(*values)]
+
+    # 记录每个参数组合的最大准确率
+    results = []
+
+    # 遍历所有参数组合，执行并记录最大准确率
+    for params in param_combinations:
+        max_accuracy = run_and_capture(params)
+        results.append((params, max_accuracy))
+        with open("grid_search_results.txt", "a") as file:
+            file.write(f"Params: {params}, Max Accuracy: {max_accuracy}\n")
+
+    # 参数空间
     # param_grid = {
     #     "fl_method": ["fedem"],
     #     "dataset_name": ["cifar100"],
