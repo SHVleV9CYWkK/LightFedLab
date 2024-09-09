@@ -196,8 +196,8 @@ class ResNet18(torch.nn.Module, AdaptedModel):
     def adapted_forward(self, x):
         # Begin with the initial convolution and batch norm
         x = F.conv2d(x, self.adapted_model_para['model.conv1.weight'], None, stride=2, padding=3)
-        x = F.batch_norm(x, self.model.bn1.running_mean, self.model.bn1.running_var,
-                         self.adapted_model_para['model.bn1.weight'], self.adapted_model_para['model.bn1.bias'],
+        x = F.batch_norm(x, self.model.bn1.running_mean, self.model.bn1.running_var, self.model.bn1.weight,
+                         self.model.bn1.bias,
                          training=self.model.bn1.training, momentum=self.model.bn1.momentum, eps=self.model.bn1.eps)
         x = F.relu(x)
         x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1)
@@ -209,22 +209,21 @@ class ResNet18(torch.nn.Module, AdaptedModel):
                 identity = x
 
                 # First sub-layer of the block
-                out = F.conv2d(x, self.adapted_model_para[f'model.{layer_name}.{block_index}.conv1.weight'], None,
+                out = F.conv2d(x, block.conv1.weight, None,
                                stride=block.conv1.stride, padding=block.conv1.padding)
                 out = F.batch_norm(out, block.bn1.running_mean, block.bn1.running_var, block.bn1.weight, block.bn1.bias,
                                    training=block.bn1.training, momentum=block.bn1.momentum, eps=block.bn1.eps)
                 out = F.relu(out)
 
                 # Second sub-layer of the block
-                out = F.conv2d(out, self.adapted_model_para[f'model.{layer_name}.{block_index}.conv2.weight'], None,
+                out = F.conv2d(out, block.conv2.weight, None,
                                stride=block.conv2.stride, padding=block.conv2.padding)
                 out = F.batch_norm(out, block.bn2.running_mean, block.bn2.running_var, block.bn2.weight, block.bn2.bias,
                                    training=block.bn2.training, momentum=block.bn2.momentum, eps=block.bn2.eps)
 
                 # Shortcut connection
                 if block.downsample is not None:
-                    identity = F.conv2d(x, self.adapted_model_para[f'model.{layer_name}.{block_index}.downsample.0.weight'], None,
-                                        stride=block.downsample[0].stride)
+                    identity = F.conv2d(x, block.downsample[0].weight, None, stride=block.downsample[0].stride)
                     identity = F.batch_norm(identity, block.downsample[1].running_mean, block.downsample[1].running_var,
                                             block.downsample[1].weight, block.downsample[1].bias,
                                             training=block.downsample[1].training, momentum=block.downsample[1].momentum,
