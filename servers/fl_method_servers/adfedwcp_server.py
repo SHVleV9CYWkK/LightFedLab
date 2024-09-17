@@ -124,7 +124,6 @@ class AdFedWCPServer(FedWCPServer):
         return k.detach().round().int().cpu().numpy()
 
     def calculate_k(self):
-        alpha = 0.5
         print("Calculating k...")
         start_time = time.time()
         if self.current_rounds == 0:
