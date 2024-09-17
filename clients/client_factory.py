@@ -1,6 +1,7 @@
 from clients.fl_method_clients.fedavg_client import FedAvgClient
 from clients.fl_method_clients.fedcg_client import FedCGClient
 from clients.fl_method_clients.fedmask_client import FedMaskClient
+from clients.fl_method_clients.fedmo_client import FedMoClient
 from clients.fl_method_clients.qfedcg_client import QFedCGClient
 from clients.fl_method_clients.fedwcp_client import FedWCPClient
 from clients.fl_method_clients.adfedwcp_client import AdFedWCPClient
@@ -39,6 +40,9 @@ class ClientFactory:
             train_hyperparam['num_components'] = args.num_components
         elif fl_type == 'adfedwcp':
             client_prototype = AdFedWCPClient
+            train_hyperparam["base_decay_rate"] = args.base_decay_rate
+        elif fl_type == 'fedmo':
+            client_prototype = FedMoClient
             train_hyperparam["base_decay_rate"] = args.base_decay_rate
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')

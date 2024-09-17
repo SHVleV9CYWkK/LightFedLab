@@ -2,6 +2,7 @@ from servers.fl_method_servers.adfedwcp_server import AdFedWCPServer
 from servers.fl_method_servers.fedavg_server import FedAvgServer
 from servers.fl_method_servers.fedcg_server import FedCGServer
 from servers.fl_method_servers.fedmask_server import FedMaskServer
+from servers.fl_method_servers.fedmo_server import FedMoServer
 from servers.fl_method_servers.qfedcg_server import QFedCGServer
 from servers.fl_method_servers.fedwcp_server import FedWCPServer
 from servers.fl_method_servers.pfedgate_server import PFedGateServer
@@ -37,6 +38,8 @@ class ServerFactory:
             server_prototype = AdFedWCPServer
             param['n_rounds'] = args.n_rounds
             param['k_round'] = args.k_round
+        elif fl_type == 'fedmo':
+            server_prototype = FedMoServer
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
