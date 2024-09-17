@@ -5,7 +5,7 @@ from clients.client import Client
 
 class FedMoClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
-        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, **kwargs)
+        super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.global_model = None
         self.base_decay_rate = hyperparam['base_decay_rate']
 
