@@ -9,6 +9,9 @@ class FedMoClient(Client):
         self.global_model = None
         self.base_decay_rate = hyperparam['base_decay_rate']
 
+    def receive_model(self, global_model):
+        self.global_model = deepcopy(global_model).to(device=self.device)
+
     def init_client(self):
         self.model = deepcopy(self.global_model).to(device=self.device)
         super().init_client()
