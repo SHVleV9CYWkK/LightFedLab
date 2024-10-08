@@ -77,6 +77,7 @@ def parse_args():
     parser.add_argument('--dl_n_job', type=int, default=0, help='The number of parallels in the client\'s Dataload')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--log_dir', type=str, default='logs', help='log directory')
+    parser.add_argument('--client_log', type=bool, default=False, help='Whether the client training records are recorded')
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda', 'mps'],
                         help='determine the computing platform')
     parser.add_argument('--split_method', type=str, choices=['dirichlet', 'label', 'clusters', 'even'],

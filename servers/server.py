@@ -47,23 +47,22 @@ class Server(ABC):
             client.init_client()
 
     def _evaluate_model(self):
-        result_list = []
+        result_dic = {}
         for client in self.selected_clients:
-            result = client.evaluate_model()
-            result_list.append(result)
+            result_dic[client.id] = client.evaluate_model()
 
-        metrics_keys = result_list[0].keys()
+        metrics_keys = next(iter(result_dic.values())).keys()
 
         average_results = {key: 0 for key in metrics_keys}
 
-        for result in result_list:
+        for result in result_dic.values():
             for key in metrics_keys:
                 average_results[key] += result.get(key, 0)
 
         for key in average_results.keys():
-            average_results[key] /= len(result_list)
+            average_results[key] /= len(result_dic)
 
-        return average_results
+        return average_results, result_dic
 
     def _handle_gradients(self, grad):
         return grad
@@ -186,8 +185,8 @@ class Server(ABC):
 
     def evaluate(self):
         print("Evaluating model...")
-        average_eval_results = self._evaluate_model()
-        return average_eval_results
+        average_eval_results, client_results = self._evaluate_model()
+        return average_eval_results, client_results
 
     def lr_scheduler(self, metric):
         for client in self.selected_clients:

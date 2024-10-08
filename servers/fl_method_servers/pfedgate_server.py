@@ -14,6 +14,6 @@ class PFedGateServer(Server):
         self._weight_aggregation(weights_list)
 
     def evaluate(self):
-        results = super().evaluate()
+        results, client_results = super().evaluate()
         self.clients[0].global_metric = results["accuracy"]
-        return results
+        return results, client_results

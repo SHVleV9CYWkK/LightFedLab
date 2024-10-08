@@ -108,7 +108,10 @@ class AdFedWCPClient(FedWCPClient):
         for key, weight in self.model.state_dict().items():
             if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 original_shape = weight.shape
-                kmeans = TorchKMeans(n_clusters=self.num_centroids[key], is_sparse=True)
+                if self.num_centroids[key] >= 5:
+                    kmeans = TorchKMeans(n_clusters=self.num_centroids[key], is_sparse=True)
+                else:
+                    kmeans = TorchKMeans(n_clusters=5, is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)
                 kmeans.fit(flattened_weights)
 

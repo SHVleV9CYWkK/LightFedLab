@@ -12,7 +12,7 @@ import logging
 logging.getLogger().setLevel(logging.ERROR)
 
 
-def save_log(eval_results, save_log_dir, dataset_name, fl_type):
+def save_log(eval_results, save_log_dir, dataset_name, fl_type, client_id=None):
     today_date = datetime.today().strftime('%Y-%m-%d')
 
     today_dir = os.path.join(save_log_dir, today_date)
@@ -23,6 +23,10 @@ def save_log(eval_results, save_log_dir, dataset_name, fl_type):
 
     log_dir = os.path.join(dataset_dir, fl_type)
     os.makedirs(log_dir, exist_ok=True)
+
+    if client_id is not None:
+        log_dir = os.path.join(dataset_dir, client_id)
+        os.makedirs(log_dir, exist_ok=True)
 
     for metric, value in eval_results.items():
         file_path = os.path.join(log_dir, f"{metric}.txt")
@@ -35,11 +39,14 @@ def execute_fed_process(server, args):
         print(f"------------\nRound {r}")
         start_time = time.time()
         server.train()
-        eval_results = server.evaluate()
+        eval_results, client_results = server.evaluate()
         end_time = time.time()
         eval_results_str = ', '.join([f"{metric.capitalize()}: {value:.4f}" for metric, value in eval_results.items()])
         print(f"Training time: {(end_time - start_time):.2f}. Evaluation Results: {eval_results_str}")
         save_log(eval_results, args.log_dir, args.dataset_name, args.fl_method)
+        if args.client_log:
+            for client_id, client_result in client_results.items():
+                save_log(client_result, args.log_dir, args.dataset_name, args.fl_method, client_id)
         if args.enable_scheduler:
             server.lr_scheduler(eval_results['accuracy'])
 

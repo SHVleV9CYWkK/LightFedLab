@@ -147,6 +147,6 @@ class AdFedWCPServer(FedWCPServer):
         self.current_rounds += 1
 
     def evaluate(self):
-        result = super().evaluate()
+        result, client_results = super().evaluate()
         self.current_acc = result['accuracy']
-        return result
+        return result, client_results

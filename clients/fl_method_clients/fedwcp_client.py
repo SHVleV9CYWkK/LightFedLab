@@ -24,13 +24,14 @@ class FedWCPClient(Client):
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
         mask_dict = {}
+        sparse_ratios = {}
         for key, weight in self.model.state_dict().items():
             if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 original_shape = weight.shape
                 kmeans = TorchKMeans(n_clusters=self.n_clusters, is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)
                 kmeans.fit(flattened_weights)
-
+                sparse_ratios[key] = kmeans.sparse_ratio()
                 new_weights = kmeans.centroids[kmeans.labels_].view(original_shape)
                 is_zero_centroid = (kmeans.centroids == 0).view(-1)
                 mask = is_zero_centroid[kmeans.labels_].view(original_shape) == 0
@@ -39,7 +40,10 @@ class FedWCPClient(Client):
             else:
                 clustered_state_dict[key] = weight
                 mask_dict[key] = torch.ones_like(weight, dtype=torch.bool)
-        return clustered_state_dict, mask_dict
+        average_sparse_ratio = sum(sparse_ratios.values()) / len(sparse_ratios)
+        with open("sparse_ratio_log.txt", "a") as file:
+            file.write(f"{average_sparse_ratio}\n")
+        return clustered_state_dict, mask_dict, average_sparse_ratio
 
     def _compute_global_local_model_difference(self):
         global_dict = self.global_model.state_dict()
