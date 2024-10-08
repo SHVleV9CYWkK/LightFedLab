@@ -82,9 +82,3 @@ class TorchKMeans:
             centroids.append(X_subsample[next_index].squeeze(0))
 
         return torch.stack(centroids).to(X.device)
-
-    def sparse_ratio(self):
-        if self.is_sparse:
-            sparse_ratio = (self.labels_ == 0).float().mean().item()
-            return sparse_ratio
-        return 0.0
