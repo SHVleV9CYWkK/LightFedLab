@@ -25,7 +25,7 @@ def save_log(eval_results, save_log_dir, dataset_name, fl_type, client_id=None):
     os.makedirs(log_dir, exist_ok=True)
 
     if client_id is not None:
-        log_dir = os.path.join(dataset_dir, client_id)
+        log_dir = os.path.join(log_dir, f"Client_{client_id}")
         os.makedirs(log_dir, exist_ok=True)
 
     for metric, value in eval_results.items():
