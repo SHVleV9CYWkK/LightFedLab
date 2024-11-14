@@ -107,25 +107,28 @@ class FedKDClient(Client):
                 # 知识蒸馏：Mentor指导Mentee
                 kd_loss_mentee = F.kl_div(
                     F.log_softmax(mentee_outputs / 2.0, dim=1),
-                    F.softmax(mentor_outputs / 2.0, dim=1),
+                    F.softmax(mentor_outputs.detach() / 2.0, dim=1),
                     reduction="batchmean",
                 )
 
                 # 知识蒸馏：Mentee指导Mentor
                 kd_loss_mentor = F.kl_div(
                     F.log_softmax(mentor_outputs / 2.0, dim=1),
-                    F.softmax(mentee_outputs / 2.0, dim=1),
+                    F.softmax(mentee_outputs.detach() / 2.0, dim=1),
                     reduction="batchmean",
                 )
 
                 # 总损失
-                total_loss = mentor_loss + kd_loss_mentor + mentee_loss + kd_loss_mentee
+                total_mentor_loss = mentor_loss + kd_loss_mentor
+                total_mentee_loss = mentee_loss + kd_loss_mentee
 
                 # 更新模型
                 self.optimizer.zero_grad()
-                self.mentee_optimizer.zero_grad()
-                total_loss.backward()
+                total_mentor_loss.backward()
                 self.optimizer.step()
+
+                self.mentee_optimizer.zero_grad()
+                total_mentee_loss.backward()
                 self.mentee_optimizer.step()
 
         # 返回Mentee模型梯度
