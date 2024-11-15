@@ -47,6 +47,7 @@ class FedKDClient(Client):
         Returns:
             dict: 压缩后的梯度，每个键仍对应一个张量。
         """
+        # original_size = compressed_size = 0
         compressed_gradient = {}
         for name, tensor in gradient.items():
             if tensor is None:  # 跳过无效参数
@@ -64,6 +65,7 @@ class FedKDClient(Client):
                 original_shape = tensor.shape
                 tensor = tensor.unsqueeze(0).unsqueeze(1)
 
+            # original_size += tensor.numel()
             # 对张量执行 SVD
             u, s, v = torch.linalg.svd(tensor)
 
@@ -77,11 +79,15 @@ class FedKDClient(Client):
             u_compressed = u[:, :k]
             v_compressed = v[:, :k]
 
+            # compressed_size += u_compressed.numel() + s_compressed.numel() + v_compressed.numel()  # 总的压缩后存储大小
+
             # 存储压缩结果
             compressed_gradient[name] = (u_compressed, s_compressed, v_compressed, original_shape)
 
-        return compressed_gradient
+        # actual_compression_rate = compressed_size / original_size
+        # print(f"Actual compression rate: {actual_compression_rate}")
 
+        return compressed_gradient
 
     def train(self):
         """
@@ -132,7 +138,8 @@ class FedKDClient(Client):
                 self.mentee_optimizer.step()
 
         # 返回Mentee模型梯度
-        param_changes = {name: initial_params[name] - param.data for name, param in self.mentee_model.named_parameters()}
+        param_changes = {name: initial_params[name] - param.data for name, param in
+                         self.mentee_model.named_parameters()}
         return self.compress_gradient(param_changes)
 
     def evaluate_model(self):

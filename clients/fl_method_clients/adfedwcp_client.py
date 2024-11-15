@@ -86,14 +86,38 @@ class AdFedWCPClient(FedWCPClient):
 
         return layer_importance
 
-    def compute_layer_weights(self):
-        layer_importance = self.compute_layer_importance()
+    def compute_number_of_layers(self):
+        layer_count = 0
 
-        importance_values = np.array(list(layer_importance.values()))
-        exp_values = np.exp(importance_values)
-        softmax_values = exp_values / np.sum(exp_values)
+        for name, layer in self.model.named_modules():
+            if 'downsample' in name:  # 跳过下采样层
+                continue
+            if isinstance(layer, (nn.Conv2d, nn.Linear)):  # 统计 Conv2d 和 Linear 层
+                layer_count += 1
 
-        self.layer_importance_weights = softmax_values
+        return layer_count
+
+    def equal_layer_importance(self):
+        # 首先，获取层的总数
+        number_of_layers = self.compute_number_of_layers()
+
+        # 计算每一层的权重，权重为 1 / 层数
+        equal_weight = 1.0 / number_of_layers
+
+        # 为每一层分配相同的权重
+        return np.full(number_of_layers, equal_weight)
+
+    def compute_layer_weights(self, uniform=True):
+        if uniform:
+            self.layer_importance_weights = self.equal_layer_importance()
+        else:
+            layer_importance = self.compute_layer_importance()
+
+            importance_values = np.array(list(layer_importance.values()))
+            exp_values = np.exp(importance_values)
+            softmax_values = exp_values / np.sum(exp_values)
+
+            self.layer_importance_weights = softmax_values
 
     def assign_num_centroids(self, k_list):
         index = 0
