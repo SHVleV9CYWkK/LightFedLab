@@ -107,7 +107,7 @@ class AdFedWCPClient(FedWCPClient):
         # 为每一层分配相同的权重
         return np.full(number_of_layers, equal_weight)
 
-    def compute_layer_weights(self, uniform=True):
+    def compute_layer_weights(self, uniform=False):
         if uniform:
             self.layer_importance_weights = self.equal_layer_importance()
         else:

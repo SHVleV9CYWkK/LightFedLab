@@ -62,7 +62,8 @@ class FedWCPClient(Client):
 
         self.model.train()
 
-        exponential_average_loss = None
+        # exponential_average_loss = None
+        decay_factor = 0.8
         alpha = 0.5  # 损失平衡系数
         for epoch in range(self.epochs):
             for idx, (x, labels) in enumerate(self.client_train_loader):
@@ -75,16 +76,16 @@ class FedWCPClient(Client):
                 loss = loss_vec.mean()
                 loss.backward()
 
-                if exponential_average_loss is None:
-                    exponential_average_loss = loss.item()
-                else:
-                    exponential_average_loss = alpha * loss.item() + (1 - alpha) * exponential_average_loss
+                # if exponential_average_loss is None:
+                #     exponential_average_loss = loss.item()
+                # else:
+                #     exponential_average_loss = alpha * loss.item() + (1 - alpha) * exponential_average_loss
 
                 # 动量退火策略
-                if loss.item() < exponential_average_loss:
-                    decay_factor = min(self.base_decay_rate ** (idx + 1) * 1.1, 0.8)
-                else:
-                    decay_factor = max(self.base_decay_rate ** (idx + 1) / 1.1, 0.1)
+                # if loss.item() < exponential_average_loss:
+                #     decay_factor = min(self.base_decay_rate ** (idx + 1) * 1.1, 0.8)
+                # else:
+                #     decay_factor = max(self.base_decay_rate ** (idx + 1) / 1.1, 0.1)
 
                 for name, param in self.model.named_parameters():
                     if name in ref_momentum:
