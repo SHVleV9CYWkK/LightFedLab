@@ -60,6 +60,8 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of the local client during training')
     parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')
     parser.add_argument('--gating_lr', type=float, default=1, help='pFedgate\'s learning rate at the gate layer')
+    parser.add_argument('--beta', type=float, default=0.1, help='')
+    parser.add_argument('--zeta', type=float, default=1.5, help='')
     parser.add_argument('--client_selection_rate', type=float, default=1, help='Client sampling rate')
     parser.add_argument('--local_epochs', type=int, default=1, help='number of local epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')

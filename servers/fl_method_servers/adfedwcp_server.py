@@ -21,8 +21,8 @@ class AdFedWCPServer(FedWCPServer):
         self.max_dataset_len = 0
         self.min_dataset_len = float('inf')
         self.c_1 = self.c_2 = 32
-        self.beta = 0.1
-        self.zeta = 1.5
+        self.beta = args['beta']
+        self.zeta = args['zeta']
 
         self.params_per_layer = {'weight': [], 'bias': []}
         for name, module in model.named_modules():

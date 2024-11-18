@@ -39,6 +39,8 @@ class ServerFactory:
             server_prototype = AdFedWCPServer
             param['n_rounds'] = args.n_rounds
             param['k_round'] = args.k_round
+            param['beta'] = args.beta
+            param['zeta'] = args.zeta
         elif fl_type == 'fedmo':
             server_prototype = FedMoServer
         elif fl_type == 'fedkd':
