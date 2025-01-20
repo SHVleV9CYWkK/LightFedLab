@@ -71,6 +71,7 @@ if __name__ == '__main__':
     torch.manual_seed(arguments.seed)
     random.seed(arguments.seed)
     np.random.seed(arguments.seed)
+    torch.set_printoptions(profile='full')
 
     if arguments.device == "cuda" and torch.cuda.is_available():
         torch.backends.cudnn.deterministic = True

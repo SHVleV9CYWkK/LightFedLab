@@ -1,5 +1,6 @@
 from copy import deepcopy
 import torch
+from torch.sparse import to_sparse_semi_structured
 from clients.client import Client
 from utils.kmeans import TorchKMeans
 
@@ -27,12 +28,25 @@ class FedWCPClient(Client):
         for key, weight in self.model.state_dict().items():
             if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 original_shape = weight.shape
-                kmeans = TorchKMeans(n_clusters=self.n_clusters, is_sparse=True)
+                kmeans = TorchKMeans(n_clusters=self.n_clusters, is_sparse=True, enforce_2of4=True)
                 flattened_weights = weight.detach().view(-1, 1)
                 kmeans.fit(flattened_weights)
                 new_weights = kmeans.centroids[kmeans.labels_].view(original_shape)
                 is_zero_centroid = (kmeans.centroids == 0).view(-1)
                 mask = is_zero_centroid[kmeans.labels_].view(original_shape) == 0
+                # --- 2) 如果在CUDA上, 转成半结构化稀疏(可加速) ---
+                if self.device.type == 'cuda':
+                    # PyTorch的semi-structured稀疏加速主要在FP16下
+                    new_weights = new_weights.half()
+
+                    # 确保被剪成2:4后，对多余的元素填0
+                    # 其实kmeans已填了0，但可以再确认:
+                    new_weights = new_weights.masked_fill(~mask, 0)
+
+                    # 转成semi-structured sparse
+                    # 仅当我们已确保2:4模式正确
+                    new_weights = to_sparse_semi_structured(new_weights)
+
                 mask_dict[key] = mask.bool()
                 clustered_state_dict[key] = new_weights
             else:
@@ -52,7 +66,12 @@ class FedWCPClient(Client):
         pruned_state_dict = {}
         for key, weight in self.model.state_dict().items():
             if key in self.mask:
-                pruned_state_dict[key] = weight * self.mask[key]
+                if weight.is_sparse:
+                    dense_w = weight.to_dense()
+                    pruned_w = dense_w * self.mask[key]
+                    pruned_state_dict[key] = to_sparse_semi_structured(pruned_w.half())
+                else:
+                    pruned_state_dict[key] = weight * self.mask[key]
             else:
                 pruned_state_dict[key] = weight
         return pruned_state_dict
