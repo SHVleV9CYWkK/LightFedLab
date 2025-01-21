@@ -53,7 +53,6 @@ class FedWCPClient(Client):
                     # PyTorch半结构化稀疏主要在FP16生效
                     new_weights = new_weights.half()
                     new_weights = new_weights.masked_fill(~mask, 0)
-                    new_weights = to_sparse_semi_structured(new_weights)
 
                 mask_dict[key] = mask.bool()
                 clustered_state_dict[key] = new_weights
