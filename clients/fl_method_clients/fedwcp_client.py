@@ -5,11 +5,24 @@ from clients.client import Client
 from utils.kmeans import TorchKMeans
 
 
+def can_use_semi_structured(weight: torch.Tensor) -> bool:
+    if weight.dim() != 2:
+        return False
+
+    rows, cols = weight.shape
+    # 这里假设 'rows' >= 32 并且是 32 的倍数, 'cols' >= 64 且是 64 的倍数
+    # 如果你的硬件/版本有其他要求, 请自行修改
+    if rows >= 32 and (rows % 32 == 0) and cols >= 64 and (cols % 64 == 0):
+        return True
+    return False
+
+
 class FedWCPClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.n_clusters = kwargs.get('n_clusters', 16)
+        self.is_sparse = kwargs.get('is_sparse', True)
         self.base_decay_rate = hyperparam['base_decay_rate']
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 
@@ -30,13 +43,13 @@ class FedWCPClient(Client):
             if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 original_shape = weight.shape
                 # 判断是否是2D张量
-                is_2d = (weight.dim() == 2)
+                is_2d = can_use_semi_structured(weight)
 
                 # 1) 若是2D => enforce_2of4=True，可以使用半结构化稀疏
                 #    若不是2D => enforce_2of4=False，仅做KMeans稀疏(有0向量)但不强制2:4
                 kmeans = TorchKMeans(
                     n_clusters=self.n_clusters,
-                    is_sparse=True,
+                    is_sparse=self.is_sparse,
                     enforce_2of4=is_2d  # 仅2D时启用2:4
                 )
 
@@ -76,7 +89,7 @@ class FedWCPClient(Client):
         pruned_state_dict = {}
         for key, weight in self.model.state_dict().items():
             if key in self.mask:
-                if weight.is_sparse:
+                if self.is_sparse and can_use_semi_structured(weight):
                     dense_w = weight.to_dense()
                     pruned_w = dense_w * self.mask[key]
                     pruned_state_dict[key] = to_sparse_semi_structured(pruned_w.half())
