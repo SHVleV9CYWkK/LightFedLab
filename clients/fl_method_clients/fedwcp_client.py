@@ -25,33 +25,44 @@ class FedWCPClient(Client):
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
         mask_dict = {}
+
         for key, weight in self.model.state_dict().items():
             if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 original_shape = weight.shape
-                kmeans = TorchKMeans(n_clusters=self.n_clusters, is_sparse=True, enforce_2of4=True)
+                # 判断是否是2D张量
+                is_2d = (weight.dim() == 2)
+
+                # 1) 若是2D => enforce_2of4=True，可以使用半结构化稀疏
+                #    若不是2D => enforce_2of4=False，仅做KMeans稀疏(有0向量)但不强制2:4
+                kmeans = TorchKMeans(
+                    n_clusters=self.n_clusters,
+                    is_sparse=True,
+                    enforce_2of4=is_2d  # 仅2D时启用2:4
+                )
+
                 flattened_weights = weight.detach().view(-1, 1)
                 kmeans.fit(flattened_weights)
                 new_weights = kmeans.centroids[kmeans.labels_].view(original_shape)
+
+                # 构造mask：非零位置为 True
                 is_zero_centroid = (kmeans.centroids == 0).view(-1)
                 mask = is_zero_centroid[kmeans.labels_].view(original_shape) == 0
-                # --- 2) 如果在CUDA上, 转成半结构化稀疏(可加速) ---
-                if self.device.type == 'cuda':
-                    # PyTorch的semi-structured稀疏加速主要在FP16下
+
+                # 如果设备是CUDA && 是2D权重，才尝试转成半结构化稀疏
+                if self.device.type == 'cuda' and is_2d:
+                    # PyTorch半结构化稀疏主要在FP16生效
                     new_weights = new_weights.half()
-
-                    # 确保被剪成2:4后，对多余的元素填0
-                    # 其实kmeans已填了0，但可以再确认:
                     new_weights = new_weights.masked_fill(~mask, 0)
-
-                    # 转成semi-structured sparse
-                    # 仅当我们已确保2:4模式正确
                     new_weights = to_sparse_semi_structured(new_weights)
 
                 mask_dict[key] = mask.bool()
                 clustered_state_dict[key] = new_weights
+
             else:
+                # 不剪枝的层，保持原状
                 clustered_state_dict[key] = weight
                 mask_dict[key] = torch.ones_like(weight, dtype=torch.bool)
+
         return clustered_state_dict, mask_dict
 
     def _compute_global_local_model_difference(self):
