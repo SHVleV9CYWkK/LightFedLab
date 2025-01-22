@@ -5,24 +5,13 @@ from clients.client import Client
 from utils.kmeans import TorchKMeans
 
 
-def can_use_semi_structured(weight: torch.Tensor) -> bool:
-    if weight.dim() != 2:
-        return False
-
-    rows, cols = weight.shape
-    # 这里假设 'rows' >= 32 并且是 32 的倍数, 'cols' >= 64 且是 64 的倍数
-    # 如果你的硬件/版本有其他要求, 请自行修改
-    if rows >= 32 and (rows % 32 == 0) and cols >= 64 and (cols % 64 == 0):
-        return True
-    return False
-
-
 class FedWCPClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.n_clusters = kwargs.get('n_clusters', 16)
         self.is_sparse = kwargs.get('is_sparse', True)
+        self.use_semi_structured = kwargs.get('use_semi_structured', True)
         self.base_decay_rate = hyperparam['base_decay_rate']
         self.global_model = self.preclustered_model_state_dict = self.new_clustered_model_state_dict = self.mask = None
 
@@ -35,6 +24,15 @@ class FedWCPClient(Client):
         self.new_clustered_model_state_dict, self.mask = self._cluster_and_prune_model_weights()
         super().init_client()
 
+    def _can_use_semi_structured(self, weight):
+        if not self.use_semi_structured or weight.dim() != 2:
+            return False
+
+        rows, cols = weight.shape
+        if rows >= 32 and (rows % 32 == 0) and cols >= 64 and (cols % 64 == 0):
+            return True
+        return False
+
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
         mask_dict = {}
@@ -42,15 +40,11 @@ class FedWCPClient(Client):
         for key, weight in self.model.state_dict().items():
             if 'weight' in key and 'bn' not in key and 'downsample' not in key:
                 original_shape = weight.shape
-                # 判断是否是2D张量
-                is_2d = can_use_semi_structured(weight)
 
-                # 1) 若是2D => enforce_2of4=True，可以使用半结构化稀疏
-                #    若不是2D => enforce_2of4=False，仅做KMeans稀疏(有0向量)但不强制2:4
                 kmeans = TorchKMeans(
                     n_clusters=self.n_clusters,
                     is_sparse=self.is_sparse,
-                    enforce_2of4=is_2d  # 仅2D时启用2:4
+                    enforce_2of4=self._can_use_semi_structured(weight)
                 )
 
                 flattened_weights = weight.detach().view(-1, 1)
@@ -61,12 +55,6 @@ class FedWCPClient(Client):
                 is_zero_centroid = (kmeans.centroids == 0).view(-1)
                 mask = is_zero_centroid[kmeans.labels_].view(original_shape) == 0
 
-                # 如果设备是CUDA && 是2D权重，才尝试转成半结构化稀疏
-                if self.device.type == 'cuda' and is_2d:
-                    # PyTorch半结构化稀疏主要在FP16生效
-                    new_weights = new_weights.half()
-                    new_weights = new_weights.masked_fill(~mask, 0)
-
                 mask_dict[key] = mask.bool()
                 clustered_state_dict[key] = new_weights
 
@@ -74,7 +62,6 @@ class FedWCPClient(Client):
                 # 不剪枝的层，保持原状
                 clustered_state_dict[key] = weight
                 mask_dict[key] = torch.ones_like(weight, dtype=torch.bool)
-
         return clustered_state_dict, mask_dict
 
     def _compute_global_local_model_difference(self):
@@ -89,12 +76,7 @@ class FedWCPClient(Client):
         pruned_state_dict = {}
         for key, weight in self.model.state_dict().items():
             if key in self.mask:
-                if self.is_sparse and can_use_semi_structured(weight):
-                    dense_w = weight.to_dense()
-                    pruned_w = dense_w * self.mask[key]
-                    pruned_state_dict[key] = to_sparse_semi_structured(pruned_w.half())
-                else:
-                    pruned_state_dict[key] = weight * self.mask[key]
+                pruned_state_dict[key] = weight * self.mask[key]
             else:
                 pruned_state_dict[key] = weight
         return pruned_state_dict
