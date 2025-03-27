@@ -1,5 +1,6 @@
 from clients.fl_method_clients.fedavg_client import FedAvgClient
 from clients.fl_method_clients.fedcg_client import FedCGClient
+from clients.fl_method_clients.fedcr_client import FedCRClient
 from clients.fl_method_clients.fedkd_client import FedKDClient
 from clients.fl_method_clients.fedmask_client import FedMaskClient
 from clients.fl_method_clients.fedmo_client import FedMoClient
@@ -8,6 +9,7 @@ from clients.fl_method_clients.fedwcp_client import FedWCPClient
 from clients.fl_method_clients.adfedwcp_client import AdFedWCPClient
 from clients.fl_method_clients.pfedgate_client import PFedGateClient
 from clients.fl_method_clients.fedem_client import FedEMClient
+from clients.fl_method_clients.fedpac_client import FedPACClient
 
 
 class ClientFactory:
@@ -18,7 +20,8 @@ class ClientFactory:
             "bz": args.batch_size,
             "local_epochs": args.local_epochs,
             "scheduler_name": args.scheduler_name,
-            "n_rounds": args.n_rounds
+            "n_rounds": args.n_rounds,
+            "lam_align": args.lam_align
         }
 
         fl_type = args.fl_method
@@ -44,9 +47,13 @@ class ClientFactory:
             train_hyperparam["base_decay_rate"] = args.base_decay_rate
         elif fl_type == 'fedmo':
             client_prototype = FedMoClient
-            train_hyperparam["base_decay_rate"] = args.base_decay_rate
         elif fl_type == 'fedkd':
             client_prototype = FedKDClient
+        elif fl_type == 'fedpac':
+            client_prototype = FedPACClient
+        elif fl_type == 'fedcr':
+            client_prototype = FedCRClient
+
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 

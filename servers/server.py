@@ -43,8 +43,12 @@ class Server(ABC):
 
     def _init_clients(self):
         print("Initializing clients...")
+        pbar = tqdm(total=len(self.clients))
         for client in self.clients:
             client.init_client()
+            pbar.update(1)
+        pbar.clear()
+        pbar.close()
 
     def _evaluate_model(self):
         result_dic = {}

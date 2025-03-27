@@ -48,7 +48,7 @@ def parse_args_for_visualization():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask', 'fedem', 'adfedwcp', 'fedmo', 'fedkd'],
+    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask', 'fedem', 'adfedwcp', 'fedmo', 'fedkd', 'fedpac', 'fedcr'],
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='emnist', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers'],
                         help='dataset name')
@@ -60,6 +60,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=1e-3, help='The learning rate of the local client during training')
     parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')
     parser.add_argument('--gating_lr', type=float, default=1, help='pFedgate\'s learning rate at the gate layer')
+    parser.add_argument('--lam_align', type=float, default=1, help='FedPAC\'s Regularize the alignment strength')
     parser.add_argument('--beta', type=float, default=0.1, help='')
     parser.add_argument('--zeta', type=float, default=1.5, help='')
     parser.add_argument('--client_selection_rate', type=float, default=1, help='Client sampling rate')
