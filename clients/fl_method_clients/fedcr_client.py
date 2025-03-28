@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torcheval.metrics.functional as metrics
-from clients.client import Client  # 你的基类
+from clients.client import Client
 
 
 class IntermediateFeatureHook:
@@ -35,18 +35,16 @@ class GaussianWrapper(nn.Module):
         feats = self.hook.features
 
         if len(feats.shape) == 4:
-            # 做一下 global avgpool => shape [B, C]
             feats = F.adaptive_avg_pool2d(feats, (1, 1))
             feats = feats.view(feats.size(0), -1)
 
         return feats
 
     def forward(self, x):
-        feats = self.extract_feature(x)         # [B, embedding_dim]
-        z_mean = self.mean_layer(feats)         # [B, latent_dim]
-        z_logvar = self.logvar_layer(feats)     # [B, latent_dim]
+        feats = self.extract_feature(x)
+        z_mean = self.mean_layer(feats)
+        z_logvar = self.logvar_layer(feats)
 
-        # 这里简单用 z_mean 喂 classifier，你也可 sample z = z_mean + eps * sigma 后喂
         logits = self.classifier(z_mean)
 
         return z_mean, z_logvar, logits
@@ -62,17 +60,9 @@ class FedCRClient(Client):
         self.global_dist = global_dist
 
     def receive_model(self, global_model):
-        """
-        直接使用服务器下发的原始 global_model 作为 base_model，
-        并利用 GaussianWrapper 对其进行包装，使得 forward 返回 (z_mean, z_logvar, logits)。
-        注意：这样包装后，self.model.state_dict() 的键会包含 "base_model." 前缀，
-        客户端上传时要确保服务器在聚合时只聚合 base_model 部分。
-        """
-        # 直接使用 global_model 作为 base_model
-        # 这里假设你希望 hook 的层是 global_model.model.avgpool（例如 ResNet18）
         if hasattr(global_model, 'model') and hasattr(global_model.model, 'avgpool'):
             hooking_layer = global_model.model.avgpool
-            embedding_dim = 512  # 适用于 ResNet18
+            embedding_dim = 512
         else:
             raise NotImplementedError("请指定合适的hooking_layer")
 

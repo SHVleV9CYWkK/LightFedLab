@@ -5,6 +5,7 @@ from servers.fl_method_servers.fedcr_server import FedCRServer
 from servers.fl_method_servers.fedkd_server import FedKDServer
 from servers.fl_method_servers.fedmask_server import FedMaskServer
 from servers.fl_method_servers.fedmo_server import FedMoServer
+from servers.fl_method_servers.fedpm_server import FedPMServer
 from servers.fl_method_servers.qfedcg_server import QFedCGServer
 from servers.fl_method_servers.fedwcp_server import FedWCPServer
 from servers.fl_method_servers.pfedgate_server import PFedGateServer
@@ -51,6 +52,8 @@ class ServerFactory:
             server_prototype = FedPACServer
         elif fl_type == 'fedcr':
             server_prototype = FedCRServer
+        elif fl_type == 'fedpm':
+            server_prototype = FedPMServer
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 
