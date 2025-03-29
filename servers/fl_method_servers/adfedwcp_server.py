@@ -85,7 +85,7 @@ class AdFedWCPServer(FedWCPServer):
 
     def objective_term_func(self, k, i, j):
         num_weights = self.params_per_layer['weight'][j]
-        if len(self.params_per_layer['bias']) < j:
+        if j < len(self.params_per_layer['bias']):
             num_bias = self.params_per_layer['bias'][j]
         else:
             num_bias = 0

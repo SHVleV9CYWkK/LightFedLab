@@ -14,7 +14,6 @@ class IntermediateFeatureHook:
 
 
 class GaussianWrapper(nn.Module):
-
     def __init__(self, base_model, hooking_layer, embedding_dim=512, latent_dim=128, num_classes=10):
         super().__init__()
         self.base_model = base_model
@@ -59,37 +58,40 @@ class FedCRClient(Client):
     def set_global_dist(self, global_dist):
         self.global_dist = global_dist
 
+    def _update_wrapper_base_model(self, global_model):
+        base_sd = global_model.state_dict()
+        self.model.base_model.load_state_dict(base_sd)
+
     def receive_model(self, global_model):
-        if hasattr(global_model, 'model') and hasattr(global_model.model, 'avgpool'):
+        if self.model is None:
             hooking_layer = global_model.model.avgpool
             embedding_dim = 512
+            self.model = GaussianWrapper(
+                base_model=global_model,
+                hooking_layer=hooking_layer,
+                embedding_dim=embedding_dim,
+                latent_dim=128,
+                num_classes=self.num_classes
+            ).to(self.device)
         else:
-            raise NotImplementedError("请指定合适的hooking_layer")
-
-        wrapped = GaussianWrapper(
-            base_model=global_model,  # 注意这里直接传入 global_model
-            hooking_layer=hooking_layer,
-            embedding_dim=embedding_dim,
-            latent_dim=128,  # 可从超参获取
-            num_classes=self.num_classes
-        )
-        self.model = wrapped.to(self.device)
+            self._update_wrapper_base_model(global_model)
 
     def _kl_gaussian_diag(self, z_mean, z_logvar, g_mean, g_sigma):
-        p_var = z_logvar.exp()
-        q_var = g_sigma * g_sigma
+        # 对局部方差 p_var 和全局方差 q_var 做下界截断，确保稳定性
+        p_var = torch.clamp(z_logvar.exp(), min=1e-3)
+        q_var = torch.clamp(g_sigma * g_sigma, min=1e-3)
         term1 = 0.5 * (q_var.log() - p_var.log())
-        term2 = 0.5 * ((p_var + (z_mean - g_mean)**2)/q_var - 1.0)
+        term2 = 0.5 * ((p_var + (z_mean - g_mean) ** 2) / q_var - 1.0)
         kl = (term1 + term2).sum(dim=1)
         return kl
 
-    def _compute_local_distribution(self):
+    def compute_local_distribution(self):
         self.model.eval()
         features_dict = {}  # 存储每个类别的特征列表
         with torch.no_grad():
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
-                # 使用包装模型 forward 得到 z_mean 等
+                # 使用包装模型 forward 得到 z_mean
                 z_mean, _, _ = self.model(x)
                 for i in range(z_mean.size(0)):
                     c = labels[i].item()
@@ -101,9 +103,9 @@ class FedCRClient(Client):
         for c, feat_list in features_dict.items():
             feats_tensor = torch.stack(feat_list, dim=0)
             mu = feats_tensor.mean(dim=0)
-            sigma = feats_tensor.std(dim=0, unbiased=False)
-            sigma[sigma < 1e-6] = 1e-6
-            local_dist[c] = {"mu": mu, "sigma": sigma}
+            # 对标准差做下界截断，避免过小值（例如由1e-6改为1e-3，可根据情况调整）
+            sigma = torch.clamp(feats_tensor.std(dim=0, unbiased=False), min=1e-3)
+            local_dist[c] = {"mu": mu, "sigma": sigma, "count": len(feat_list)}
         self.model.train()
         return local_dist
 
@@ -113,12 +115,15 @@ class FedCRClient(Client):
         self.model.train()
 
         for epoch in range(self.epochs):
+            avg_loss = avg_ce_loss = avg_kl_loss = 0
+
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
 
                 z_mean, z_logvar, logits = self.model(x)
                 ce_loss = self.criterion(logits, labels).mean()
+                avg_ce_loss += ce_loss.item()
 
                 kl_loss = 0.0
                 if self.global_dist is not None:
@@ -126,26 +131,28 @@ class FedCRClient(Client):
                     kl_list = []
                     for i in range(bs):
                         c = labels[i].item()
+                        # 如果全局分布中没有该类别，则跳过或者可以使用平滑策略
+                        if c not in self.global_dist:
+                            continue
                         g_mean = self.global_dist[c]["mu"].to(self.device)
                         g_sigma = self.global_dist[c]["sigma"].to(self.device)
                         pm = z_mean[i].unsqueeze(0)
                         pl = z_logvar[i].unsqueeze(0)
                         kl_val = self._kl_gaussian_diag(pm, pl, g_mean, g_sigma)
                         kl_list.append(kl_val)
-                    kl_tensor = torch.cat(kl_list, dim=0)
-                    kl_loss = kl_tensor.mean()
+                    if len(kl_list) > 0:
+                        kl_tensor = torch.cat(kl_list, dim=0)
+                        kl_loss = kl_tensor.mean()
+                    avg_kl_loss += kl_loss
 
                 loss = ce_loss + self.beta * kl_loss
+                avg_loss += loss.item()
                 loss.backward()
                 self.optimizer.step()
+            print('Client: {} Epoch: {}, All Loss: {:.4f}, CE loss: {:.4f}, KL Loss: {:.4f}'.format(self.id, epoch, avg_loss, avg_ce_loss, avg_kl_loss))
 
         aggregated_state = self.model.base_model.state_dict()
-        local_dist = self._compute_local_distribution()
-
-        return {
-            "model_state": aggregated_state,
-            "local_dist": local_dist,
-        }
+        return aggregated_state
 
     def evaluate_model(self):
         self.model.eval()
@@ -156,7 +163,7 @@ class FedCRClient(Client):
         with torch.no_grad():
             for x, labels in self.client_val_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
-                # 因为包装后的模型返回 (z_mean, z_logvar, logits)
+                # 包装模型返回 (z_mean, z_logvar, logits)
                 _, _, outputs = self.model(x)
                 loss = self.criterion(outputs, labels)
                 loss_meta_model = loss.mean()
