@@ -115,15 +115,12 @@ class FedCRClient(Client):
         self.model.train()
 
         for epoch in range(self.epochs):
-            avg_loss = avg_ce_loss = avg_kl_loss = 0
-
             for x, labels in self.client_train_loader:
                 x, labels = x.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
 
                 z_mean, z_logvar, logits = self.model(x)
                 ce_loss = self.criterion(logits, labels).mean()
-                avg_ce_loss += ce_loss.item()
 
                 kl_loss = 0.0
                 if self.global_dist is not None:
@@ -143,13 +140,10 @@ class FedCRClient(Client):
                     if len(kl_list) > 0:
                         kl_tensor = torch.cat(kl_list, dim=0)
                         kl_loss = kl_tensor.mean()
-                    avg_kl_loss += kl_loss
 
                 loss = ce_loss + self.beta * kl_loss
-                avg_loss += loss.item()
                 loss.backward()
                 self.optimizer.step()
-            print('Client: {} Epoch: {}, All Loss: {:.4f}, CE loss: {:.4f}, KL Loss: {:.4f}'.format(self.id, epoch, avg_loss, avg_ce_loss, avg_kl_loss))
 
         aggregated_state = self.model.base_model.state_dict()
         return aggregated_state
