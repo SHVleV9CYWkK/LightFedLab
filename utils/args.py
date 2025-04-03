@@ -3,7 +3,7 @@ import argparse
 
 def parse_args_for_dataset():
     parser = argparse.ArgumentParser(description="Dataset splitting for federated learning")
-    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers'],
+    parser.add_argument('--dataset_name', type=str, default='cifar10', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers', 'tiny_imagenet'],
                         help='dataset name')
     parser.add_argument('--clients_num', type=int, default=10, help='number of clients')
     parser.add_argument('--n_clusters', type=int, default=-1, help='number of clusters using clusters split method')
@@ -50,10 +50,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask', 'fedem', 'adfedwcp', 'fedmo', 'fedkd', 'fedpac', 'fedcr', 'fedpm'],
                         help='federated learning method')
-    parser.add_argument('--dataset_name', type=str, default='emnist', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers'],
+    parser.add_argument('--dataset_name', type=str, default='emnist', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers', 'tiny_imagenet'],
                         help='dataset name')
     parser.add_argument('--alpha', type=float, default=0.4, help='The alpha of the dataset, which is used to select the dataset')
-    parser.add_argument('--model', type=str, default='leafcnn1', choices=['cnn', 'alexnet', 'leafcnn1', 'lenet', 'mobilebart', 'resnet18', 'vgg16'],
+    parser.add_argument('--model', type=str, default='leafcnn1', choices=['cnn', 'alexnet', 'leafcnn1', 'lenet', 'mobilebart', 'resnet18', 'vgg16', 'resnet50'],
                         help='model name')
     parser.add_argument('--optimizer_name', type=str, default='adam', choices=['sgd', 'adam', 'adamw'],
                         help='The name of the optimizer used')

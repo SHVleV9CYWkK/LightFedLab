@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet18, ResNet18_Weights, vgg16, VGG16_Weights, alexnet, AlexNet_Weights
+from torchvision.models import resnet18, ResNet18_Weights, vgg16, VGG16_Weights, alexnet, AlexNet_Weights, resnet50, \
+    ResNet50_Weights
 
 
 class CNNModel(torch.nn.Module):
@@ -226,7 +227,8 @@ class ResNet18(torch.nn.Module, AdaptedModel):
                     identity = F.conv2d(x, block.downsample[0].weight, None, stride=block.downsample[0].stride)
                     identity = F.batch_norm(identity, block.downsample[1].running_mean, block.downsample[1].running_var,
                                             block.downsample[1].weight, block.downsample[1].bias,
-                                            training=block.downsample[1].training, momentum=block.downsample[1].momentum,
+                                            training=block.downsample[1].training,
+                                            momentum=block.downsample[1].momentum,
                                             eps=block.downsample[1].eps)
 
                 x = F.relu(out + identity)
@@ -236,6 +238,102 @@ class ResNet18(torch.nn.Module, AdaptedModel):
         x = F.linear(x, self.adapted_model_para['model.fc.weight'], self.adapted_model_para['model.fc.bias'])
         return x
 
+
+class ResNet50(nn.Module, AdaptedModel):
+    def __init__(self, num_classes):
+        super(ResNet50, self).__init__()
+        # 使用预训练权重初始化 ResNet50 模型
+        self.model = resnet50(weights=ResNet50_Weights.DEFAULT)
+        # ResNet50 最后一层全连接层的输入通道数为 2048
+        self.model.fc = nn.Linear(2048, num_classes)
+        # 创建一个字典来保存自适应参数
+        self.adapted_model_para = {name: None for name, _ in self.named_parameters()}
+
+    def forward(self, x):
+        return self.model(x)
+
+    def adapted_forward(self, x):
+        # 开始：初始卷积层 + BN + ReLU + 最大池化
+        x = F.conv2d(x, self.adapted_model_para['model.conv1.weight'], None, stride=2, padding=3)
+        x = F.batch_norm(x,
+                         self.model.bn1.running_mean,
+                         self.model.bn1.running_var,
+                         self.model.bn1.weight,
+                         self.model.bn1.bias,
+                         training=self.model.bn1.training,
+                         momentum=self.model.bn1.momentum,
+                         eps=self.model.bn1.eps)
+        x = F.relu(x)
+        x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1)
+
+        # 遍历四个层，每个层中包含若干个 Bottleneck block
+        for layer_name in ['layer1', 'layer2', 'layer3', 'layer4']:
+            layer = getattr(self.model, layer_name)
+            for block in layer:
+                identity = x
+
+                # 第1个卷积层（1x1 卷积）
+                out = F.conv2d(x, block.conv1.weight, None,
+                               stride=block.conv1.stride,
+                               padding=block.conv1.padding)
+                out = F.batch_norm(out,
+                                   block.bn1.running_mean,
+                                   block.bn1.running_var,
+                                   block.bn1.weight,
+                                   block.bn1.bias,
+                                   training=block.bn1.training,
+                                   momentum=block.bn1.momentum,
+                                   eps=block.bn1.eps)
+                out = F.relu(out)
+
+                # 第2个卷积层（3x3 卷积）
+                out = F.conv2d(out, block.conv2.weight, None,
+                               stride=block.conv2.stride,
+                               padding=block.conv2.padding)
+                out = F.batch_norm(out,
+                                   block.bn2.running_mean,
+                                   block.bn2.running_var,
+                                   block.bn2.weight,
+                                   block.bn2.bias,
+                                   training=block.bn2.training,
+                                   momentum=block.bn2.momentum,
+                                   eps=block.bn2.eps)
+                out = F.relu(out)
+
+                # 第3个卷积层（1x1 卷积）
+                out = F.conv2d(out, block.conv3.weight, None,
+                               stride=block.conv3.stride,
+                               padding=block.conv3.padding)
+                out = F.batch_norm(out,
+                                   block.bn3.running_mean,
+                                   block.bn3.running_var,
+                                   block.bn3.weight,
+                                   block.bn3.bias,
+                                   training=block.bn3.training,
+                                   momentum=block.bn3.momentum,
+                                   eps=block.bn3.eps)
+
+                # 如果 block 存在 downsample，则对 shortcut 进行处理
+                if block.downsample is not None:
+                    identity = F.conv2d(x, block.downsample[0].weight, None,
+                                        stride=block.downsample[0].stride)
+                    identity = F.batch_norm(identity,
+                                            block.downsample[1].running_mean,
+                                            block.downsample[1].running_var,
+                                            block.downsample[1].weight,
+                                            block.downsample[1].bias,
+                                            training=block.downsample[1].training,
+                                            momentum=block.downsample[1].momentum,
+                                            eps=block.downsample[1].eps)
+
+                # 将 shortcut 与卷积输出相加后再经过 ReLU
+                x = F.relu(out + identity)
+
+        # 全局平均池化、展平，并使用自适应参数的全连接层计算输出
+        x = F.adaptive_avg_pool2d(x, (1, 1))
+        x = torch.flatten(x, 1)
+        x = F.linear(x, self.adapted_model_para['model.fc.weight'], self.adapted_model_para['model.fc.bias'])
+        return x
 
 
 class VGG16(nn.Module, AdaptedModel):

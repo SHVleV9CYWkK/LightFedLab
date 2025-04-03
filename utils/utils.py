@@ -1,11 +1,12 @@
 import os
 import numpy as np
+from torchvision.datasets import ImageFolder
 from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from utils.yahoo import YahooAnswersDataset
 from torchvision import transforms
 from transformers import MobileBertForSequenceClassification
 import torch.optim as optim
-from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet, ResNet18, VGG16
+from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet, ResNet18, VGG16, ResNet50
 
 
 def load_dataset(dataset_name):
@@ -33,6 +34,12 @@ def load_dataset(dataset_name):
              ]
         )
         dataset = EMNIST(root='./data', train=True, download=True, transform=transform, split="byclass")
+    elif dataset_name == 'tiny_imagenet':
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        dataset = ImageFolder(root='./data/tiny-imagenet-200/train', transform=transform)
     elif dataset_name == 'mnist':
         transform = transforms.ToTensor()
         dataset = MNIST(root='./data', train=True, download=True, transform=transform)
@@ -48,6 +55,8 @@ def load_model(model_name, num_classes):
         model = AlexNet(num_classes)
     elif model_name == 'resnet18':
         model = ResNet18(num_classes)
+    elif model_name == 'resnet50':
+        model = ResNet50(num_classes)
     elif model_name == 'vgg16':
         model = VGG16(num_classes)
     elif model_name == 'cnn':
