@@ -5,6 +5,7 @@ from clients.fl_method_clients.fedkd_client import FedKDClient
 from clients.fl_method_clients.fedmask_client import FedMaskClient
 from clients.fl_method_clients.fedmo_client import FedMoClient
 from clients.fl_method_clients.fedpm_client import FedPMClient
+from clients.fl_method_clients.pfed1bs_client import pFed1BSClient
 from clients.fl_method_clients.qfedcg_client import QFedCGClient
 from clients.fl_method_clients.fedwcp_client import FedWCPClient
 from clients.fl_method_clients.adfedwcp_client import AdFedWCPClient
@@ -56,6 +57,8 @@ class ClientFactory:
             client_prototype = FedCRClient
         elif fl_type == 'fedpm':
             client_prototype = FedPMClient
+        elif fl_type == 'pfed1bs':
+            client_prototype = pFed1BSClient
 
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')

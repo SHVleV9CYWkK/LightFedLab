@@ -4,7 +4,7 @@ from torchvision.datasets import ImageFolder
 from torchvision.datasets import CIFAR10, CIFAR100, EMNIST, MNIST
 from utils.yahoo import YahooAnswersDataset
 from torchvision import transforms
-from transformers import MobileBertForSequenceClassification
+from transformers import MobileBertForSequenceClassification, BertForSequenceClassification
 import torch.optim as optim
 from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet, ResNet18, VGG16, ResNet50
 
@@ -65,6 +65,17 @@ def load_model(model_name, num_classes):
         model = LeafCNN1(num_classes)
     elif model_name == 'lenet':
         model = LeNet(num_classes)
+    elif model_name == 'bert-mini':
+        model = BertForSequenceClassification.from_pretrained("prajjwal1/bert-mini",
+                                                              num_labels=num_classes,
+                                                              ignore_mismatched_sizes=True)
+        original_forward = model.forward
+
+        def forward_with_logits_only(*args, **kwargs):
+            outputs = original_forward(*args, **kwargs)
+            return outputs.logits
+
+        model.forward = forward_with_logits_only
     elif model_name == 'mobilebart':
         model = MobileBertForSequenceClassification.from_pretrained("lordtt13/emo-mobilebert",
                                                                     num_labels=num_classes,

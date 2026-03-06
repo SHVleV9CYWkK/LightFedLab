@@ -48,12 +48,12 @@ def parse_args_for_visualization():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask', 'fedem', 'adfedwcp', 'fedmo', 'fedkd', 'fedpac', 'fedcr', 'fedpm'],
+    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask', 'fedem', 'adfedwcp', 'fedmo', 'fedkd', 'fedpac', 'fedcr', 'fedpm', 'pfed1bs'],
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='emnist', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers', 'tiny_imagenet'],
                         help='dataset name')
     parser.add_argument('--alpha', type=float, default=0.4, help='The alpha of the dataset, which is used to select the dataset')
-    parser.add_argument('--model', type=str, default='leafcnn1', choices=['cnn', 'alexnet', 'leafcnn1', 'lenet', 'mobilebart', 'resnet18', 'vgg16', 'resnet50'],
+    parser.add_argument('--model', type=str, default='leafcnn1', choices=['cnn', 'alexnet', 'leafcnn1', 'lenet', 'mobilebart', 'resnet18', 'vgg16', 'resnet50', 'bert-mini'],
                         help='model name')
     parser.add_argument('--optimizer_name', type=str, default='adam', choices=['sgd', 'adam', 'adamw'],
                         help='The name of the optimizer used')
