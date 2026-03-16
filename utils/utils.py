@@ -7,6 +7,7 @@ from torchvision import transforms
 from transformers import MobileBertForSequenceClassification, BertForSequenceClassification
 import torch.optim as optim
 from models.cnn_model import CNNModel, LeafCNN1, LeNet, AlexNet, ResNet18, VGG16, ResNet50
+import timm
 
 
 def load_dataset(dataset_name):
@@ -19,6 +20,7 @@ def load_dataset(dataset_name):
         dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
     elif dataset_name == 'cifar100':
         transform = transforms.Compose([
+            transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
         ])
@@ -65,6 +67,8 @@ def load_model(model_name, num_classes):
         model = LeafCNN1(num_classes)
     elif model_name == 'lenet':
         model = LeNet(num_classes)
+    elif model_name == 'tiny_vit':
+        model = timm.create_model("timm/tiny_vit_11m_224.dist_in22k_ft_in1k", pretrained=True)
     elif model_name == 'bert-mini':
         model = BertForSequenceClassification.from_pretrained("prajjwal1/bert-mini",
                                                               num_labels=num_classes,
