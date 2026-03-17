@@ -25,7 +25,6 @@ class FedWCPClient(Client):
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
         mask_dict = {}
-        print(self.model.state_dict().keys())
 
         for key, weight in self.model.state_dict().items():
             if self._should_compress(key, weight):
