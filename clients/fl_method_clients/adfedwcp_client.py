@@ -130,7 +130,7 @@ class AdFedWCPClient(FedWCPClient):
         clustered_state_dict = {}
         mask_dict = {}
         for key, weight in self.model.state_dict().items():
-            if 'weight' in key and 'bn' not in key and 'downsample' not in key:
+            if self._should_compress(key, weight):
                 original_shape = weight.shape
                 if self.num_centroids[key] >= 5:
                     kmeans = TorchKMeans(n_clusters=self.num_centroids[key], is_sparse=True)

@@ -7,6 +7,7 @@ from utils.kmeans import TorchKMeans
 class FedWCPClient(Client):
     def __init__(self, client_id, dataset_index, full_dataset, hyperparam, device, **kwargs):
         super().__init__(client_id, dataset_index, full_dataset, hyperparam, device, kwargs.get('dl_n_job', 0))
+        self.compress_min_params = 50000
         self.reg_lambda = kwargs.get('reg_lambda', 0.01)
         self.n_clusters = kwargs.get('n_clusters', 16)
         self.base_decay_rate = hyperparam['base_decay_rate']
@@ -24,8 +25,13 @@ class FedWCPClient(Client):
     def _cluster_and_prune_model_weights(self):
         clustered_state_dict = {}
         mask_dict = {}
+        print(self.model.state_dict().keys())
+
         for key, weight in self.model.state_dict().items():
-            if 'weight' in key and 'bn' not in key and 'downsample' not in key:
+            print(f"Key: {key}, Weight Shape: {weight.shape}")
+
+        for key, weight in self.model.state_dict().items():
+            if self._should_compress(key, weight):
                 original_shape = weight.shape
                 kmeans = TorchKMeans(n_clusters=self.n_clusters, is_sparse=True)
                 flattened_weights = weight.detach().view(-1, 1)
@@ -56,6 +62,27 @@ class FedWCPClient(Client):
             else:
                 pruned_state_dict[key] = weight
         return pruned_state_dict
+
+    def _should_compress(self, name, param):
+        if not name.endswith('weight'):
+            return False
+        if param.ndim < 2:
+            return False
+
+        # 跳过归一化层
+        if any(x in name for x in ['.bn.', '.norm.']):
+            return False
+
+        # 跳过明显很小的特殊层
+        if 'attention_biases' in name:
+            return False
+
+        # 跳过 depthwise conv（通常 shape 像 [C,1,3,3]）
+        if param.ndim == 4 and param.shape[1] == 1:
+            return False
+
+        # 只压参数量足够大的层
+        return param.numel() >= self.compress_min_params
 
     def train(self):
         ref_momentum = self._compute_global_local_model_difference()
