@@ -28,9 +28,6 @@ class FedWCPClient(Client):
         print(self.model.state_dict().keys())
 
         for key, weight in self.model.state_dict().items():
-            print(f"Key: {key}, Weight Shape: {weight.shape}")
-
-        for key, weight in self.model.state_dict().items():
             if self._should_compress(key, weight):
                 original_shape = weight.shape
                 kmeans = TorchKMeans(n_clusters=self.n_clusters, is_sparse=True)
