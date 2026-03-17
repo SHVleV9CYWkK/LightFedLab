@@ -7,9 +7,3 @@ class FedWCPServer(Server):
 
     def _average_aggregate(self, weights_list):
         self._weight_aggregation(weights_list)
-
-        sparsity_rate = 0
-        for client in self.clients:
-            sparsity_rate += client.sparsity_rate
-
-        print('Average sparsity rate:', sparsity_rate / len(self.clients))
