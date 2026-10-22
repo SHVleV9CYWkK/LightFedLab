@@ -76,7 +76,8 @@ class Client(ABC):
                 loss = self.criterion(outputs, labels)
                 loss_meta_model = loss.mean()
                 total_loss += loss_meta_model
-                _, predicted = torch.max(outputs.data, 1)
+                # 预训练模型（如 TinyViT）保留 1000 类的输出头，只在数据集的类别中预测，否则 F1 会越界
+                _, predicted = torch.max(outputs.data[:, :self.num_classes], 1)
                 all_labels.append(labels)
                 all_predictions.append(predicted)
 

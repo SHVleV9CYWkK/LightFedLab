@@ -8,6 +8,7 @@ from servers.fl_method_servers.fedmask_server import FedMaskServer
 from servers.fl_method_servers.fedmo_server import FedMoServer
 from servers.fl_method_servers.fedpm_server import FedPMServer
 from servers.fl_method_servers.pfed1bs_server import pFed1BSServer
+from servers.fl_method_servers.pfedme_server import pFedMeServer
 from servers.fl_method_servers.qfedcg_server import QFedCGServer
 from servers.fl_method_servers.fedwcp_server import FedWCPServer
 from servers.fl_method_servers.pfedgate_server import PFedGateServer
@@ -43,9 +44,14 @@ class ServerFactory:
         elif fl_type == 'adfedwcp':
             server_prototype = AdFedWCPServer
             param['n_rounds'] = args.n_rounds
-            param['k_round'] = args.k_round
             param['beta'] = args.beta
             param['zeta'] = args.zeta
+            param['k_ref'] = args.k_ref
+            param['gamma_a'] = args.gamma_a
+            param['tau'] = args.tau
+            param['k_min'] = args.k_min
+            param['k_max'] = args.k_max
+            param['t_max'] = args.t_max
         elif fl_type == 'fedmo':
             server_prototype = FedMoServer
         elif fl_type == 'fedkd':
@@ -60,6 +66,9 @@ class ServerFactory:
             server_prototype = pFed1BSServer
         elif fl_type == 'fedfq':
             server_prototype = FedFQServer
+        elif fl_type == 'pfedme':
+            server_prototype = pFedMeServer
+            param['pfedme_beta'] = args.pfedme_beta
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')
 

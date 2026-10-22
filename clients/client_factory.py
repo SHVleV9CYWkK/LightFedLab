@@ -7,6 +7,7 @@ from clients.fl_method_clients.fedmask_client import FedMaskClient
 from clients.fl_method_clients.fedmo_client import FedMoClient
 from clients.fl_method_clients.fedpm_client import FedPMClient
 from clients.fl_method_clients.pfed1bs_client import pFed1BSClient
+from clients.fl_method_clients.pfedme_client import pFedMeClient
 from clients.fl_method_clients.qfedcg_client import QFedCGClient
 from clients.fl_method_clients.fedwcp_client import FedWCPClient
 from clients.fl_method_clients.adfedwcp_client import AdFedWCPClient
@@ -62,6 +63,11 @@ class ClientFactory:
             client_prototype = pFed1BSClient
         elif fl_type == 'fedfq':
             client_prototype = FedFQClient
+        elif fl_type == 'pfedme':
+            client_prototype = pFedMeClient
+            train_hyperparam['pfedme_lambda'] = args.pfedme_lambda
+            train_hyperparam['pfedme_k'] = args.pfedme_k
+            train_hyperparam['personal_lr'] = args.personal_lr
 
         else:
             raise NotImplementedError(f'Invalid Federated learning method name: {fl_type}')

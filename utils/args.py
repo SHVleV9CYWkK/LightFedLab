@@ -48,7 +48,7 @@ def parse_args_for_visualization():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask', 'fedem', 'adfedwcp', 'fedmo', 'fedkd', 'fedpac', 'fedcr', 'fedpm', 'pfed1bs', 'fedfq'],
+    parser.add_argument('--fl_method', type=str, default='fedavg', choices=['fedavg', 'fedcg', 'qfedcg', 'fedwcp', 'pfedgate', 'fedmask', 'fedem', 'adfedwcp', 'fedmo', 'fedkd', 'fedpac', 'fedcr', 'fedpm', 'pfed1bs', 'fedfq', 'pfedme'],
                         help='federated learning method')
     parser.add_argument('--dataset_name', type=str, default='emnist', choices=['cifar10', 'cifar100', 'emnist', 'mnist', 'yahooanswers', 'tiny_imagenet'],
                         help='dataset name')
@@ -61,13 +61,22 @@ def parse_args():
     parser.add_argument('--server_lr', type=float, default=1e-3, help='When aggregating global gradients, the learning rate when the global model is updated')
     parser.add_argument('--gating_lr', type=float, default=1, help='pFedgate\'s learning rate at the gate layer')
     parser.add_argument('--lam_align', type=float, default=1, help='FedPAC\'s Regularize the alignment strength')
-    parser.add_argument('--beta', type=float, default=0.1, help='')
-    parser.add_argument('--zeta', type=float, default=1.5, help='')
+    parser.add_argument('--beta', type=float, default=0.1, help='AdFedWCP accuracy-feedback gain xi applied when accuracy improves')
+    parser.add_argument('--zeta', type=float, default=1.5, help='AdFedWCP accuracy-feedback gain zeta applied when accuracy drops')
+    parser.add_argument('--k_ref', type=int, default=16, help='AdFedWCP reference budget: lambda_0 is calibrated so the median client-layer pair gets k_ref centroids')
+    parser.add_argument('--gamma_a', type=float, default=1.0, help='AdFedWCP progress factor at which k_ref is anchored when calibrating lambda_0 (1 = first round, 1.5 = mid-training)')
+    parser.add_argument('--tau', type=float, default=0.1, help='AdFedWCP softmax temperature for layer importance weights')
+    parser.add_argument('--k_min', type=int, default=4, help='AdFedWCP minimum number of centroids per layer')
+    parser.add_argument('--k_max', type=int, default=256, help='AdFedWCP maximum number of centroids per layer')
+    parser.add_argument('--t_max', type=float, default=None, help='AdFedWCP per-client upload deadline in seconds (no deadline if unset)')
+    parser.add_argument('--pfedme_lambda', type=float, default=15, help='pFedMe regularization strength lambda between personalized and local models')
+    parser.add_argument('--pfedme_k', type=int, default=5, help='pFedMe number of gradient steps K for the personalized (inner) problem')
+    parser.add_argument('--personal_lr', type=float, default=0.01, help='pFedMe step size of the inner gradient descent on the personalized model')
+    parser.add_argument('--pfedme_beta', type=float, default=1.0, help='pFedMe server mixing parameter beta (1 = plain model averaging)')
     parser.add_argument('--client_selection_rate', type=float, default=1, help='Client sampling rate')
     parser.add_argument('--local_epochs', type=int, default=1, help='number of local epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--n_rounds', type=int, default=100, help='number of global rounds')
-    parser.add_argument('--k_round', type=int, default=1000, help='AdFedWCP solves k, which is used to control the solution time of k.')
     parser.add_argument('--base_decay_rate', type=float, default=0.5, help='FedWCP updates the base attenuation rate locally')
     parser.add_argument('--scheduler_name', type=str, default='reduce_on_plateau', choices=['sqrt', 'linear', 'constant', 'cosine_annealing', 'multi_step', 'reduce_on_plateau'],
                         help='Select the name of the learning rate scheduler')

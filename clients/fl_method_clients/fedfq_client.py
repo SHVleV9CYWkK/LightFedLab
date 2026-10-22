@@ -130,12 +130,19 @@ class FedFQClient(Client):
         |W| clients are selected uniformly.
         """
         out_state = {}
+        total_original_bits = 0  # FP32 baseline
+        total_quantized_bits = 0  # actual bits after quantization
         for key, w_local in local_state.items():
             w_global = self.global_state[key].to(w_local.device)
+            num_elements = w_local.numel()
 
             if not self._is_quantizable(key, w_local):
                 # Pass through unchanged (tensor goes to server as-is)
                 out_state[key] = w_local.detach().clone()
+                if w_local.is_floating_point():
+                    total_original_bits += num_elements * 32
+                    total_quantized_bits += num_elements * 32
+                continue
                 continue
 
             # Compute update tensor h, flatten, quantize, reshape back
@@ -159,6 +166,19 @@ class FedFQClient(Client):
             # Reconstruct the (quantized) local weight: server-side aggregation
             # of these tensors then becomes a plain weighted average — see Eq. 4.
             out_state[key] = (w_global + h_q).detach().clone()
+
+            total_original_bits += num_elements * 32
+            total_quantized_bits += budget
+
+            # Print compression summary
+            if total_original_bits > 0:
+                compression_ratio = total_quantized_bits / total_original_bits
+                reduction = 1.0 - compression_ratio
+                print(f"[Client {self.id}] Compression: "
+                      f"{total_quantized_bits}/{total_original_bits} bits "
+                      f"({compression_ratio * 100:.2f}%), "
+                      f"reduced {reduction * 100:.2f}%, "
+                      f"{1.0 / compression_ratio:.1f}× compression")
 
         return out_state
 
