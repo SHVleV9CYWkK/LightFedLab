@@ -1,5 +1,6 @@
 import math
 import random
+import sys
 import time
 import numpy as np
 import torch.nn as nn
@@ -161,7 +162,9 @@ class AdFedWCPServer(FedWCPServer):
             upload_times.append(upload_time)
             if is_straggler:
                 stragglers.append(client.id)
-        print(np.array(k_lists))
+        # 完整打印（每个客户端一行）：numpy 默认超过 1000 个元素就用 "..." 省略，TinyViT / ResNet18 的 k 会丢失
+        with np.printoptions(threshold=sys.maxsize, linewidth=sys.maxsize):
+            print(np.array(k_lists))
         print(f"Upload time per client (s): {np.round(upload_times, 3).tolist()}")
         if stragglers:
             print(f"Stragglers (k_min on every layer still exceeds t_max): {stragglers}")
